@@ -1,0 +1,31 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "RockCosmetics",
+	"Description": "Cosmetic System with support for Mutable, derived from Lyra's Cosmetic system.",
+	"Category": "Cosmetics",
+	"CreatedBy": "Epic Games, Inc. and Broken Rock Studios",
+	"ModifiedBy": "Broken Rock Studios",
+	"CreatedByURL": "https://github.com/brokenrockstudios/RockCosmetics",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "https://github.com/brokenrockstudios/RockCosmetics",
+	"CanContainContent": false,
+	"IsBetaVersion": false,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "RockCosmetics",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "Mutable",
+			"Enabled": true
+		}
+	]
+}
