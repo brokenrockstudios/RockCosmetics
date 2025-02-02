@@ -1,3 +1,4 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 // Copyright Broken Rock Studios LLC. All Rights Reserved.
 // See the LICENSE file for details.
 
@@ -8,7 +9,7 @@
 #include "RockCosmeticDevelopmentStatics.generated.h"
 
 /**
- * 
+ * A utility class providing static functions for cosmetic development in the RockCosmetics plugin.
  */
 UCLASS()
 class ROCKCOSMETICS_API URockCosmeticDevelopmentStatics : public UBlueprintFunctionLibrary

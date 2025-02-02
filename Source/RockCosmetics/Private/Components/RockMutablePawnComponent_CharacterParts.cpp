@@ -1,5 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
-// Modified by Broken Rock Studios
+// Copyright Broken Rock Studios LLC. All Rights Reserved.
 // See the LICENSE file for details.
 
 #include "Components/RockMutablePawnComponent_CharacterParts.h"
