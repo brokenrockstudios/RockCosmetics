@@ -1,4 +1,5 @@
 // Copyright Broken Rock Studios LLC. All Rights Reserved.
+// See the LICENSE file for details.
 
 using UnrealBuildTool;
 
@@ -24,7 +25,11 @@ public class RockCosmetics : ModuleRules
 			new string[]
 			{
 				"Core",
-				"CustomizableObject"
+				"DeveloperSettings",
+				"GameplayTags",
+				"ModularGameplay",
+				"NetCore",
+				"CustomizableObject", 
 			}
 		);
 

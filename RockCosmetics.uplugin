@@ -3,7 +3,7 @@
 	"Version": 1,
 	"VersionName": "1.0",
 	"FriendlyName": "RockCosmetics",
-	"Description": "Cosmetic System with support for Mutable, derived from Lyra's Cosmetic system.",
+	"Description": "Cosmetic System with support for Mutable Plugin, derived from Lyra's Cosmetic system.",
 	"Category": "Cosmetics",
 	"CreatedBy": "Epic Games, Inc. and Broken Rock Studios",
 	"ModifiedBy": "Broken Rock Studios",
@@ -25,6 +25,10 @@
 	"Plugins": [
 		{
 			"Name": "Mutable",
+			"Enabled": true
+		},
+		{
+			"Name": "ModularGameplay",
 			"Enabled": true
 		}
 	]
