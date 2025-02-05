@@ -31,23 +31,30 @@ void URockMutablePawnComponent_CharacterParts::BroadcastChanged()
 {
 	for (const FRockAppliedCharacterPartEntry& Entry : CharacterPartList.Entries)
 	{
-		if (Entry.SpawnedComponent != nullptr)
+		if (Entry.SpawnedComponent == nullptr)
 		{
-			// It's a primary character
-			const auto characterSkin = Cast<ARockMutableTaggedActor>(Entry.SpawnedComponent->GetChildActor());
-			if(characterSkin)
-			{
-				CustomizableObjectInstance = characterSkin->GetCustomizableObjectInstance();
-				if (const auto usage = characterSkin->GetUsage())
-				{
-					usage->UpdatedDelegate.BindUObject(this, &URockMutablePawnComponent_CharacterParts::OnCustomizableObjectUpdated);
-					//characterSkin->_CustomizableSkeletalComponent->UpdatedDelegate.BindUObject(this, &URockPawnComponent_CharacterParts::OnCustomizableSkeletalUpdated);
-					usage->UpdateSkeletalMeshAsync();
-				}
-				//characterSkin->_CustomizableObjectInstance->UpdatedDelegate.AddDynamic(this, &URockPawnComponent_CharacterParts::OnCustomizableObjectUpdated);
-			}
-			// else for other non-primary characters
-			// Perhaps an attached 'pan' or gun on back might not be a primary characterskin
+			UE_LOG(LogRockCosmetic, Warning, TEXT("SpawnedComponent is null"));
+			continue;
+		}
+		// It's a primary character
+		const ARockMutableTaggedActor* mutableTaggedActor = Cast<ARockMutableTaggedActor>(Entry.SpawnedComponent->GetChildActor());
+		if(mutableTaggedActor == nullptr)
+		{
+			UE_LOG(LogRockCosmetic, Warning, TEXT("MutableTaggedActor is null"));
+			continue;
+		}
+		CustomizableObjectInstance = mutableTaggedActor->GetCustomizableObjectInstance();
+		if (CustomizableObjectInstance == nullptr)
+		{
+			UE_LOG(LogRockCosmetic, Warning, TEXT("mutableTaggedActor's CustomizableObjectInstance is null"));
+			continue;
+		}
+
+		
+		if (const auto usage = mutableTaggedActor->GetUsage())
+		{
+			usage->UpdatedDelegate.BindUObject(this, &ThisClass::OnCustomizableObjectUpdated);
+			usage->UpdateSkeletalMeshAsync();
 		}
 	}
 	
@@ -60,7 +67,7 @@ void URockMutablePawnComponent_CharacterParts::BroadcastChanged()
 
 void URockMutablePawnComponent_CharacterParts::OnRep_InstanceDescriptor()
 {
-	auto customObjectInstance = CustomizableObjectInstance.Get();
+	UCustomizableObjectInstance* customObjectInstance = CustomizableObjectInstance.Get();
 	if(!customObjectInstance)
 	{
 		UE_LOG(LogRockCosmetic, Warning, TEXT("URockPawnComponent_CharacterParts::OnRep_InstanceDescriptor: CustomizableObjectInstance is null"));
@@ -73,7 +80,7 @@ void URockMutablePawnComponent_CharacterParts::OnRep_InstanceDescriptor()
 
 void URockMutablePawnComponent_CharacterParts::SerializeAndSendInstanceDescriptor()
 {
-	auto customObjectInstance = CustomizableObjectInstance.Get();
+	UCustomizableObjectInstance* customObjectInstance = CustomizableObjectInstance.Get();
 	if(!customObjectInstance)
 	{
 		UE_LOG (LogRockCosmetic, Warning, TEXT("URockPawnComponent_CharacterParts::SerializeAndSendInstanceDescriptor: CustomizableObjectInstance is null"));
@@ -83,7 +90,7 @@ void URockMutablePawnComponent_CharacterParts::SerializeAndSendInstanceDescripto
 	FMemoryWriter Writer(InstanceDescriptor);
 	customObjectInstance->SaveDescriptor(Writer, false);
 
-	// // If change happens in a client we must send it to the server to that it replicates it to the other clients
+	// // If we wanted a client change propagate, we must send it to the server to that it replicates it to the other clients
 	// if (GetOwnerRole()/*GetLocalRole()*/ < ROLE_Authority)
 	// {
 	// 	ServerRPCUpdateInstanceDescriptor(InstanceDescriptor);
@@ -95,11 +102,11 @@ void URockMutablePawnComponent_CharacterParts::AddCharacterPartFromMutableOption
 	auto customObjectInstance = CustomizableObjectInstance.Get();
 	if( customObjectInstance)
 	{
-		// for (const auto& boolParam : NewPart.BoolParameters)
-		// {
+		 for (const auto& boolParam : NewPart.BoolParameters)
+		 {
 		// 	// boolParam.Id ?
-		// 	CustomizableObjectInstance->SetBoolParameterSelectedOption(boolParam.ParameterName, boolParam.ParameterValue);
-		// }
+		 	CustomizableObjectInstance->SetBoolParameterSelectedOption(boolParam.ParameterName, boolParam.ParameterValue);
+		 }
 		for (const auto& intParam : NewPart.IntParameters)
 		{
 			// intParam.Id ?

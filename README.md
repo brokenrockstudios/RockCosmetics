@@ -52,6 +52,17 @@ And can consider removing most of the old Lyra Cosmetic folder files.
 #### **Advanced Note**: 
 You can outright swap to inheriting from the new RockCosmetic classes from Blueprint as well and skip the above steps.
 
+### Warning
+In the original Lyra, LyraAnimationTypes were used to handle cosmetic animations. 
+And during switch over to FRockAnimBodyStyleSelectionSet, be cautious on how you switch over.
+Such as in `LyraWeaponInstance` 
+
+* It's always best to add a new struct or component, switch code over, and only then remove the old data reference. 
+This way will minimize the risk of data loss.
+
+Feel free to ask questions regarding this.
+
+
 ### From Scratch
 
 1. **Clone the repository** into your project's `Plugins` folder.
@@ -83,7 +94,7 @@ WIP: More detailed instructions will be added in the future.
   * encourages community contributions for continued improvements
   * Some existing modularization efforts for Lyra have unclear licensing concerns. This plugin clearly follows Epic's EULA first, then MIT License for any remaining portions.
 
-# License
+# 📃 License
 
 This project is a fork of Epic Games' codebase and is therefor subject to the Unreal Engine EULA and the Unreal Engine Content EULA.
 Any portions of the code that are not covered by Epic's EULA are licensed under the MIT License, as specified in the LICENSE file.
@@ -118,12 +129,14 @@ It allows for rea-time modifications such as:
  * Generating a runtime merged skeletal mesh. Eliminating the need for CopyPose or multiple character meshes. 
      * Enables and streamlines new workflows for 3D modelers.   
 
-Unlike traditional systems, Mutable generates a single optimized skeletal mesh at runtime, drastically improving performance and memory usage.
+Unlike traditional systems, Mutable generates a single optimized skeletal mesh at runtime, drastically improving 
+performance, memory usage, and draw calls.
 
-Epic Games acquired Mutable from Anticto. Games using Mutable:
+Epic Games acquired Mutable from Anticto.
+
+Games using Mutable:
 * Lego Fortnite
 * PUBG
-
 
 # 🔗 Relevant Links
 * Announcement: https://www.unrealengine.com/en-US/news/the-mutable-sample-project-is-now-available

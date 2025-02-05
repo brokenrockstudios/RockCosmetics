@@ -35,7 +35,7 @@ struct FRockCustomizableObjectBoolParameterValue
 	GENERATED_BODY()
 
 	static constexpr bool DEFAULT_PARAMETER_VALUE = false;
-	// This is basically a empty string
+	// This is basically an empty string
 	inline static const FString DEFAULT_PARAMETER_VALUE_NAME;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = MutableCosmetic)
