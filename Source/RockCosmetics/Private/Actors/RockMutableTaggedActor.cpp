@@ -56,7 +56,6 @@ UCustomizableObjectInstanceUsage* ARockMutableTaggedActor::GetUsage(int32 Index)
 	{
 		return Usages[Index];
 	}
-	checkf(false, TEXT("Invalid index %d"), Index);
 	return nullptr;
 }
 
