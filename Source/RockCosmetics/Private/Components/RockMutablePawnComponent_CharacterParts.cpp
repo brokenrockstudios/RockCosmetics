@@ -11,14 +11,11 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RockMutablePawnComponent_CharacterParts)
 
-// Sets default values for this component's properties
 URockMutablePawnComponent_CharacterParts::URockMutablePawnComponent_CharacterParts()
 {
 	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
 	// off to improve performance if you don't need them.
 	PrimaryComponentTick.bCanEverTick = true;
-
-	// ...
 }
 
 void URockMutablePawnComponent_CharacterParts::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -29,6 +26,8 @@ void URockMutablePawnComponent_CharacterParts::GetLifetimeReplicatedProps(TArray
 
 void URockMutablePawnComponent_CharacterParts::BroadcastChanged()
 {
+	Super::BroadcastChanged();
+	
 	for (const FRockAppliedCharacterPartEntry& Entry : CharacterPartList.Entries)
 	{
 		if (Entry.SpawnedComponent == nullptr)
@@ -43,13 +42,14 @@ void URockMutablePawnComponent_CharacterParts::BroadcastChanged()
 			UE_LOG(LogRockCosmetic, Warning, TEXT("MutableTaggedActor is null"));
 			continue;
 		}
+		
 		CustomizableObjectInstance = mutableTaggedActor->GetCustomizableObjectInstance();
 		if (CustomizableObjectInstance == nullptr)
 		{
-			UE_LOG(LogRockCosmetic, Warning, TEXT("mutableTaggedActor's CustomizableObjectInstance is null"));
+			// This always triggers on first broadcast, so we can skip/ignore this 
+			UE_LOG(LogRockCosmetic, Verbose, TEXT("mutableTaggedActor's CustomizableObjectInstance is null"));
 			continue;
 		}
-
 		
 		if (const auto usage = mutableTaggedActor->GetUsage())
 		{
@@ -57,13 +57,7 @@ void URockMutablePawnComponent_CharacterParts::BroadcastChanged()
 			usage->UpdateSkeletalMeshAsync();
 		}
 	}
-	
-	// This should happen after the above because it triggers the actual broadcast 
-	Super::BroadcastChanged();
 }
-
-
-// MUTABLE =================================
 
 void URockMutablePawnComponent_CharacterParts::OnRep_InstanceDescriptor()
 {
