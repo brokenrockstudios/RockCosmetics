@@ -21,7 +21,7 @@ struct FRockAnimLayerSelectionEntry
 
 	// Layer to apply if the tag matches
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TSubclassOf<UAnimInstance> Layer;
+	TSoftClassPtr<UAnimInstance> Layer;
 
 	// Cosmetic tags required (all of these must be present to be considered a match)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(Categories="Cosmetic"))

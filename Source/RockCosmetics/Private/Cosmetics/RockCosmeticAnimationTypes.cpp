@@ -15,7 +15,10 @@ TSubclassOf<UAnimInstance> FRockAnimLayerSelectionSet::SelectBestLayer(const FGa
 	{
 		if ((Rule.Layer != nullptr) && CosmeticTags.HasAll(Rule.RequiredTags))
 		{
-			return Rule.Layer;
+			// Is there a way we can use the DefaultLayer and then hotswap this onload?
+			// For now, we will just skip hard referencing it until we need it. This could cause a 'slight' hiccup
+			// But at the moment we don't use this so.... 
+			return Rule.Layer.LoadSynchronous();
 		}
 	}
 

@@ -5,9 +5,11 @@
 
 #include "RockCosmeticFunctionLibrary.h"
 #include "RockCosmeticLogging.h"
-#include "Misc/DataValidation.h"
 #include "MuCO/CustomizableObjectInstanceUsage.h"
 #include "MuCO/CustomizableObjectSystem.h"
+#if WITH_EDITOR
+#include "Misc/DataValidation.h"
+#endif
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RockMutableTaggedActor)
 
