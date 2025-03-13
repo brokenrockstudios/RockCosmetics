@@ -159,6 +159,7 @@ void URockMutablePawnComponent_CharacterParts::RemoveCharacterPartFromMutableOpt
 			// If there is no 'None', then we might need to find option at 0, or equivalent
 			customObjectInstance->SetIntParameterSelectedOption(intParam.ParameterName, "None");
 		}
+		customObjectInstance->UpdateSkeletalMeshAsync();
 	}
 }
 
