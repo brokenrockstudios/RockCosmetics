@@ -24,6 +24,7 @@ TArray<UCustomizableObjectInstanceUsage*> URockCosmeticFunctionLibrary::AddCusto
 		if (componentIndex == 0)
 		{
 			component = Cast<USkeletalMeshComponent>(Actor->GetRootComponent());
+			ensureMsgf(component, TEXT("Failed to get SkeletalMeshComponent as the RootComponent. The RockCosmetics expects the root component to be a SkeletalMeshComponent"));
 			component->Rename(*SkeletalMeshComponentName);
 		}
 		else
