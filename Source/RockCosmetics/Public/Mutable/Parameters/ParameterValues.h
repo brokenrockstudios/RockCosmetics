@@ -6,7 +6,7 @@
 #include "CoreMinimal.h"
 #include "MuCO/CustomizableObjectParameterTypeDefinitions.h"
 
-#include "ParamaterValues.generated.h"
+#include "ParameterValues.generated.h"
 
 // We have to use custom ParameterValue instead of the default ones because the one that come with Mutable
 // Does not have EditDefaults or any way for the user to edit it.

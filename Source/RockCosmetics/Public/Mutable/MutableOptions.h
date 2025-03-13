@@ -4,7 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Parameters/ParamaterValues.h"
+#include "Parameters/ParameterValues.h"
 #include "UObject/Object.h"
 #include "MutableOptions.generated.h"
 
