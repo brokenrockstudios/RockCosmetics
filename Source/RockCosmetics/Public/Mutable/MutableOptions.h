@@ -26,6 +26,7 @@ struct FRockMutableOption
 {
 	GENERATED_BODY()
 public:
+	
 	// @TODO: If we are able to add a DetailsCustomizer, we should be able to generate the 'dropdown' from the CustomizableObject for the user to select from
 	// We probably need to indicate which CustomizableObject we are customizing
 	//UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Modular Character Skin")
@@ -51,15 +52,3 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "MutableCosmetic")
 	TArray<FCustomizableObjectProjectorParameterValue> ProjectorParameters;
 };
-
-
-// e.g. To attach this to an inventory item fragment, we could do something like this:
-// UCLASS()
-// class LYRAGAME_API UAEInventoryFragment_MutableCosmetic : public UArcInventoryItemFragment
-// {
-// 	GENERATED_BODY()
-// public:
-//
-// 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MutableCosmetic")
-// 	FRockMutableOption MutableOption;
-// };

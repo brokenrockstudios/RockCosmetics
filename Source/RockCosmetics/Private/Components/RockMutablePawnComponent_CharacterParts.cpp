@@ -5,7 +5,9 @@
 
 #include "RockCosmeticLogging.h"
 #include "Actors/RockMutableTaggedActor.h"
+#include "MuCO/CustomizableObject.h"
 #include "MuCO/CustomizableObjectSystem.h"
+#include "Mutable/MutableLayers.h"
 #include "Mutable/MutableOptions.h"
 #include "Net/UnrealNetwork.h"
 
@@ -27,7 +29,7 @@ void URockMutablePawnComponent_CharacterParts::GetLifetimeReplicatedProps(TArray
 void URockMutablePawnComponent_CharacterParts::BroadcastChanged()
 {
 	Super::BroadcastChanged();
-	
+
 	for (const FRockAppliedCharacterPartEntry& Entry : CharacterPartList.Entries)
 	{
 		if (Entry.SpawnedComponent == nullptr)
@@ -37,12 +39,12 @@ void URockMutablePawnComponent_CharacterParts::BroadcastChanged()
 		}
 		// It's a primary character
 		const ARockMutableTaggedActor* mutableTaggedActor = Cast<ARockMutableTaggedActor>(Entry.SpawnedComponent->GetChildActor());
-		if(mutableTaggedActor == nullptr)
+		if (mutableTaggedActor == nullptr)
 		{
 			UE_LOG(LogRockCosmetic, Warning, TEXT("MutableTaggedActor is null"));
 			continue;
 		}
-		
+
 		CustomizableObjectInstance = mutableTaggedActor->GetCustomizableObjectInstance();
 		if (CustomizableObjectInstance == nullptr)
 		{
@@ -50,19 +52,29 @@ void URockMutablePawnComponent_CharacterParts::BroadcastChanged()
 			UE_LOG(LogRockCosmetic, Verbose, TEXT("mutableTaggedActor's CustomizableObjectInstance is null"));
 			continue;
 		}
-		
+
+		if (InitialAppearanceDescriptor.IsEmpty())
+		{
+			CaptureInitialAppearance();
+		}
+
 		if (const auto usage = mutableTaggedActor->GetUsage())
 		{
 			usage->UpdatedDelegate.BindUObject(this, &ThisClass::OnCustomizableObjectUpdated);
 			usage->UpdateSkeletalMeshAsync();
 		}
 	}
+	
+	// TODO:
+	// Support non TaggedActor character parts, which would require a different way to get the CustomizableObjectInstance and bind to updates. 
+	// What if we had an interface that provided us with a list of CustomizableObjectInstances to bind to? That way we could support both the tagged actor 
+	// approach and any other actor/component that implements that interface. We would just loop through all provided instances and bind to their update delegates.
 }
 
 void URockMutablePawnComponent_CharacterParts::OnRep_InstanceDescriptor()
 {
 	UCustomizableObjectInstance* customObjectInstance = CustomizableObjectInstance.Get();
-	if(!customObjectInstance)
+	if (!customObjectInstance)
 	{
 		UE_LOG(LogRockCosmetic, Warning, TEXT("URockPawnComponent_CharacterParts::OnRep_InstanceDescriptor: CustomizableObjectInstance is null"));
 		return;
@@ -75,9 +87,9 @@ void URockMutablePawnComponent_CharacterParts::OnRep_InstanceDescriptor()
 void URockMutablePawnComponent_CharacterParts::SerializeAndSendInstanceDescriptor()
 {
 	UCustomizableObjectInstance* customObjectInstance = CustomizableObjectInstance.Get();
-	if(!customObjectInstance)
+	if (!customObjectInstance)
 	{
-		UE_LOG (LogRockCosmetic, Warning, TEXT("URockPawnComponent_CharacterParts::SerializeAndSendInstanceDescriptor: CustomizableObjectInstance is null"));
+		UE_LOG(LogRockCosmetic, Warning, TEXT("URockPawnComponent_CharacterParts::SerializeAndSendInstanceDescriptor: CustomizableObjectInstance is null"));
 		return;
 	}
 	InstanceDescriptor.Reset(InstanceDescriptor.Num());
@@ -90,84 +102,6 @@ void URockMutablePawnComponent_CharacterParts::SerializeAndSendInstanceDescripto
 	// 	ServerRPCUpdateInstanceDescriptor(InstanceDescriptor);
 	// }
 }
-
-void URockMutablePawnComponent_CharacterParts::AddCharacterPartFromMutableOption(const FRockMutableOption& NewPart)
-{
-	auto customObjectInstance = CustomizableObjectInstance.Get();
-	if( customObjectInstance)
-	{
-		 for (const auto& boolParam : NewPart.BoolParameters)
-		 {
-		// 	// boolParam.Id ?
-		 	CustomizableObjectInstance->SetBoolParameterSelectedOption(boolParam.ParameterName, boolParam.ParameterValue);
-		 }
-		for (const auto& intParam : NewPart.IntParameters)
-		{
-			// intParam.Id ?
-			customObjectInstance->SetIntParameterSelectedOption(intParam.ParameterName, intParam.ParameterValueName);
-
-			// Something with ParameterRangeValueNames?
-			// Only useful on multidimensional params
-			// for (int32 i= 0; i < intParam.ParameterRangeValueNames.Num(); i++)
-			// {
-			// 	FString rangeValue = intParam.ParameterRangeValueNames[i];
-			// 	CustomizableObjectInstance->SetIntParameterSelectedOption(intParam.ParameterName, rangeValue, i);
-			// }
-			
-		}
-		//
-		// for (const auto& floatParam : NewPart.FloatParameters)
-		// {
-		// 	CustomizableObjectInstance->SetFloatParameterSelectedOption(floatParam.ParameterName, floatParam.ParameterValue);
-		// 	// Unused ParameterRangeValueNames
-		// }
-		// for (const auto& textureParam : NewPart.TextureParameters)
-		// {
-		// 	CustomizableObjectInstance->SetTextureParameterSelectedOption(textureParam.ParameterName, textureParam.ParameterValue.ToString());
-		// }
-		// for (const auto& vectorParam : NewPart.VectorParameters)
-		// {
-		// 	// Vector and LinearColor are same thing according to Mutable
-		// 	CustomizableObjectInstance->SetColorParameterSelectedOption(vectorParam.ParameterName, vectorParam.ParameterValue);
-		// 	//CustomizableObjectInstance->SetVectorParameterSelectedOption(vectorParam.ParameterName, vectorParam.ParameterValue);
-		// }
-		// for (const auto& projectorParam : NewPart.ProjectorParameters)
-		// {
-		// 	CustomizableObjectInstance->SetProjectorValue(projectorParam.ParameterName,
-		// 		FVector(projectorParam.Value.Position),
-		// 		FVector(projectorParam.Value.Direction),
-		// 		FVector(projectorParam.Value.Up),
-		// 		FVector(projectorParam.Value.Scale),
-		// 		projectorParam.Value.Angle);
-		// 	// RangeValues could contain a variety of values
-		// 	// unused TArray<FCustomizableObjectProjector> RangeValues; 
-		// }
-		
-		customObjectInstance->UpdateSkeletalMeshAsync();
-	}
-}
-void URockMutablePawnComponent_CharacterParts::RemoveCharacterPartFromMutableOption(const FRockMutableOption& NewPart)
-{
-	UCustomizableObjectInstance* customObjectInstance = CustomizableObjectInstance.Get();
-	if( customObjectInstance)
-	{
-		for (const auto& intParam : NewPart.IntParameters)
-		{
-			// What if there is no None?  OR is there always one?
-			// What should the fallback or how to reset to default?
-			// Going back to None is probably fine on clothing, but not as good maybe with other things? I dunno
-			// If there is no 'None', then we might need to find option at 0, or equivalent
-			customObjectInstance->SetIntParameterSelectedOption(intParam.ParameterName, "None");
-		}
-		customObjectInstance->UpdateSkeletalMeshAsync();
-	}
-}
-
-void URockMutablePawnComponent_CharacterParts::ShowCharacterInformation(bool bFullInfo, bool ShowMaterialInfo)
-{
-	UCustomizableObjectSystem::GetInstance()->LogShowData(bFullInfo, ShowMaterialInfo);
-}
-
 
 bool URockMutablePawnComponent_CharacterParts::ServerRPCUpdateInstanceDescriptor_Validate(const TArray<uint8>& NewInstanceDescriptor)
 {
@@ -183,7 +117,7 @@ void URockMutablePawnComponent_CharacterParts::ServerRPCUpdateInstanceDescriptor
 	{
 		// No need to update the actual instance if this is a dedicated server with no graphics display
 		OnRep_InstanceDescriptor();
-	}	
+	}
 }
 
 void URockMutablePawnComponent_CharacterParts::OnCustomizableObjectUpdated()
@@ -194,7 +128,134 @@ void URockMutablePawnComponent_CharacterParts::OnCustomizableObjectUpdated()
 	}
 	else
 	{
-		UE_LOG (LogRockCosmetic, Warning, TEXT("URockPawnComponent_CharacterParts::OnCustomizableSkeletalUpdated: Not authority"));
+		UE_LOG(LogRockCosmetic, Warning, TEXT("URockPawnComponent_CharacterParts::OnCustomizableSkeletalUpdated: Not authority"));
 	}
 }
 
+void URockMutablePawnComponent_CharacterParts::ApplyOptionToDescriptor(FCustomizableObjectInstanceDescriptor& WorkingDescriptor, const FRockMutableOption& Option)
+{
+	for (const auto& boolParam : Option.BoolParameters)
+	{
+		WorkingDescriptor.SetBoolParameterSelectedOption(boolParam.ParameterName, boolParam.ParameterValue);
+	}
+	for (const auto& intParam : Option.IntParameters)
+	{
+		WorkingDescriptor.SetIntParameterSelectedOption(intParam.ParameterName, intParam.ParameterValueName);
+	}
+	// TODO: more...
+}
+
+FRockCosmeticHandle URockMutablePawnComponent_CharacterParts::AddCosmeticEntry(int32 LayerIndex, const FRockMutableOption& MutableOption)
+{
+	CosmeticHandleCount++;
+	FRockCosmeticHandle newHandle{CosmeticHandleCount};
+	
+	FRockMutableCosmeticEntry newEntry = FRockMutableCosmeticEntry{LayerIndex, newHandle, MutableOption};
+	CosmeticMutableEntries.Add(newEntry);
+
+	// Keep it sorted so RefreshAppearance is always a simple linear loop
+	CosmeticMutableEntries.Sort();
+
+	RequestRecompose();
+	return newHandle;
+}
+
+void URockMutablePawnComponent_CharacterParts::RemoveCosmeticEntry(const FRockCosmeticHandle& CosmeticHandle)
+{
+	int32 removedCount = CosmeticMutableEntries.RemoveAll([CosmeticHandle](const FRockMutableCosmeticEntry& Entry)
+	{
+		return Entry.CosmeticHandle == CosmeticHandle;
+	});
+
+	if (removedCount > 0)
+	{
+		RequestRecompose();
+	}
+}
+
+void URockMutablePawnComponent_CharacterParts::RemoveCosmeticLayer(int32 LayerIndex)
+{
+	int32 removedCount = CosmeticMutableEntries.RemoveAll([LayerIndex](const FRockMutableCosmeticEntry& Entry)
+	{
+		return Entry.LayerIndex == LayerIndex;
+	});
+
+	if (removedCount > 0)
+	{
+		RequestRecompose();
+	}
+}
+
+void URockMutablePawnComponent_CharacterParts::CaptureInitialAppearance()
+{
+	if (InitialAppearanceDescriptor.Num() > 0)
+	{
+		return;
+	}
+
+	UCustomizableObjectInstance* customObjectInstance = CustomizableObjectInstance.Get();
+	if (customObjectInstance)
+	{
+		InitialAppearanceDescriptor.Reset(); // Ensure it's clean
+
+		FMemoryWriter Writer(InitialAppearanceDescriptor);
+		customObjectInstance->SaveDescriptor(Writer, false);
+
+		UE_LOG(LogRockCosmetic, Log, TEXT("Base appearance captured (%d bytes)"), InitialAppearanceDescriptor.Num());
+	}
+}
+
+void URockMutablePawnComponent_CharacterParts::RequestRecompose()
+{
+	if (bRecomposePending)
+	{
+		return;
+	}
+	bRecomposePending = true;
+	
+	GetWorld()->GetTimerManager().SetTimerForNextTick(this, &ThisClass::ExecuteRecompose);
+}
+
+
+void URockMutablePawnComponent_CharacterParts::ExecuteRecompose()
+{
+	bRecomposePending = false;
+
+	// LAYER 0: Start with our saved Base Appearance
+	UCustomizableObjectInstance* customObjectInstance = CustomizableObjectInstance.Get();
+	if (!customObjectInstance)
+	{
+		UE_LOG(LogRockCosmetic, Error, TEXT("URockPawnComponent_CharacterParts::RefreshAppearance: CustomizableObjectInstance is null"));
+		return;
+	}
+	UCustomizableObject* CO = customObjectInstance->GetCustomizableObject();
+	if (!CO)
+	{
+		UE_LOG(LogRockCosmetic, Error, TEXT("URockPawnComponent_CharacterParts::RefreshAppearance: CustomizableObject is null"));
+		return;
+	}
+
+	FCustomizableObjectInstanceDescriptor WorkingDescriptor(*CO);
+	{
+		FMemoryReader memoryReader(InitialAppearanceDescriptor);
+		WorkingDescriptor.LoadDescriptor(memoryReader);
+	}
+
+	// the Layers should already be appropriately sorted by priority, so we just loop through them and apply all the options we have stored for each layer
+	for (const FRockMutableCosmeticEntry& CosmeticEntry : CosmeticMutableEntries)
+	{
+		ApplyOptionToDescriptor(WorkingDescriptor, CosmeticEntry.Option);
+	}
+
+	// FINISH: Serialize, Load to Instance, and Bake
+	{
+		// FINISH: Serialize and Load
+		TArray<uint8> TempBuffer;
+		FMemoryWriter Writer(TempBuffer);
+		WorkingDescriptor.SaveDescriptor(Writer, false);
+
+		FMemoryReader Reader(TempBuffer);
+		customObjectInstance->LoadDescriptor(Reader);
+	}
+	customObjectInstance->UpdateSkeletalMeshAsync();
+}
