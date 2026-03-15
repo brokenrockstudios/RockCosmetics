@@ -22,7 +22,7 @@ void URockCosmeticDevelopmentStatics::ForEachAuthorityWorld(TFunctionRef<void(UW
 				// (TestWorld->GetNetMode() == NM_DedicatedServer || TestWorld->GetNetMode() == NM_ListenServer)
 				if (TestWorld->GetNetMode() != NM_Client) 
 				{
-					// This is an authority world—call the passed-in lambda/function
+					// This is an authority world-call the passed-in lambda/function
 					AuthorityWorlds.Add(TestWorld);
 				}
 			}

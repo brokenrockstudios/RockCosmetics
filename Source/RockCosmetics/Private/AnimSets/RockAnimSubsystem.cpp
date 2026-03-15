@@ -52,12 +52,12 @@ void URockAnimSubsystem::RebuildCache()
 	AnimSetsHandle = AssetManager.LoadPrimaryAssets(
 		AssetIds,
 		TArray<FName>(),
-		FStreamableDelegate::CreateUObject(this, &URockAnimSubsystem::OnAnimSetsLoaded));
+		FStreamableDelegate::CreateUObject(this, &URockAnimSubsystem::OnAssetsLoaded));
 
 	UE_LOG(LogRockCosmetic, Display, TEXT("URockAnimSubsystem: Requesting async load of %d anim set(s)..."), AssetIds.Num());
 }
 
-void URockAnimSubsystem::OnAnimSetsLoaded()
+void URockAnimSubsystem::OnAssetsLoaded()
 {
 	UAssetManager& AssetManager = UAssetManager::Get();
 

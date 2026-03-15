@@ -20,7 +20,7 @@ UAnimMontage* URockAnimSetDataAsset::GetMontage(FGameplayTag AnimTag, bool bForc
 			// ... sync load + warning
 			if (bForceSyncIfNeeded)
 			{
-				UE_LOG(LogRockCosmetic, Warning, TEXT("URockAnimSetDataAsset::GetMontage — sync loading %s for tag %s. Should preload. May cause hitches!"),
+				UE_LOG(LogRockCosmetic, Warning, TEXT("URockAnimSetDataAsset::GetMontage: Sync loading %s for tag %s. Should preload. May cause hitches!"),
 				       *Found->GetAssetName(),
 				       *AnimTag.ToString());
 

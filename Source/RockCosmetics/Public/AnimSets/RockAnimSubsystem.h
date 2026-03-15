@@ -12,6 +12,19 @@
 struct FStreamableHandle;
 class URockAnimSetDataAsset;
 
+USTRUCT(BlueprintType, Blueprintable, Category = "Animation")
+struct UE_API FRockAnimationForSkeletonClass
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY(BlueprintReadWrite, EditAnywhere,  Category = "Animation")
+	FGameplayTag DesiredAnimationTag;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Animation")
+	FGameplayTag SkeletonClass;
+};
+
+
 USTRUCT()
 struct FRockAnimSetArray
 {
@@ -34,10 +47,13 @@ public:
 	virtual void Deinitialize() override;
 
 	void RebuildCache();
-	void OnAnimSetsLoaded();
+	void OnAssetsLoaded();
 
 	UFUNCTION(BlueprintCallable, Category = "Rock|Animation")
 	UAnimMontage* GetMontage(const AActor* Pawn, FGameplayTag AnimTag, bool bForceSyncIfNeeded = false) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Rock|Animation")
+	FGameplayTag GetSkeletonClass(const AActor* Pawn) const;
 
 private:
 	// Config assets injected at game startup/per experience
@@ -45,9 +61,6 @@ private:
 	UPROPERTY()
 	TMap<FGameplayTag, FRockAnimSetArray> AnimSets;
 	TSharedPtr<FStreamableHandle> AnimSetsHandle;
-
-	// Internal Helpers.
-	FGameplayTag GetSkeletonClass(const AActor* Pawn) const;
 };
 
 #undef UE_API
