@@ -26,11 +26,13 @@ struct FRockCosmeticHandle
 
 	UPROPERTY()
 	int32 Handle = INDEX_NONE;
+
 	bool operator==(FRockCosmeticHandle OtherHandle) const
 	{
 		return Handle == OtherHandle.Handle;
 	}
-	
+
+	bool IsValid() const { return Handle != INDEX_NONE; }
 };
 
 USTRUCT()
@@ -40,13 +42,13 @@ struct FRockMutableCosmeticEntry
 
 	UPROPERTY()
 	int32 LayerIndex = INDEX_NONE;
-	
+
 	UPROPERTY()
 	FRockCosmeticHandle CosmeticHandle;
 
 	UPROPERTY()
 	FRockMutableOption Option;
-	
+
 	// The Magic: Sort by Priority first, then by ID (order of addition)
 	bool operator<(const FRockMutableCosmeticEntry& Other) const
 	{
