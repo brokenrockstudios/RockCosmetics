@@ -61,6 +61,8 @@ private:
 	UPROPERTY()
 	TMap<FGameplayTag, FRockAnimSetArray> AnimSets;
 	TSharedPtr<FStreamableHandle> AnimSetsHandle;
+	
+	friend class URockAsyncAction_GetMontage;
 };
 
 #undef UE_API

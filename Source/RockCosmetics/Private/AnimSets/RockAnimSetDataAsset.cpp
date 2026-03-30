@@ -34,7 +34,7 @@ UAnimMontage* URockAnimSetDataAsset::GetMontage(FGameplayTag AnimTag, bool bForc
 	return nullptr;
 }
 
-void URockAnimSetDataAsset::RequestMontage(FGameplayTag AnimTag, TFunction<void(UAnimMontage*)> OnLoaded)
+bool URockAnimSetDataAsset::RequestMontage(FGameplayTag AnimTag, TFunction<void(UAnimMontage*)> OnLoaded)
 {
 	// Async loads the montage for the given tag. If not found, walks up the tag 
 	// hierarchy (e.g. Anim.Emote.Dance.Floss -> Anim.Emote.Dance -> Anim.Emote)
@@ -48,7 +48,7 @@ void URockAnimSetDataAsset::RequestMontage(FGameplayTag AnimTag, TFunction<void(
 			if (Found->IsValid())
 			{
 				OnLoaded(Found->Get());
-				return;
+				return true;
 			}
 
 			TWeakObjectPtr<URockAnimSetDataAsset> WeakThis(this);
@@ -64,11 +64,11 @@ void URockAnimSetDataAsset::RequestMontage(FGameplayTag AnimTag, TFunction<void(
 					}
 				}
 			);
-			return;
+			return true;
 		}
 		Current = Current.RequestDirectParent();
 	}
-	OnLoaded(nullptr);
+	return false;
 }
 
 void URockAnimSetDataAsset::PreloadAll(FStreamableDelegate OnComplete)

@@ -24,8 +24,8 @@ public:
 	// Synchronous returns null if not loaded 
 	UAnimMontage* GetMontage(FGameplayTag AnimTag, bool bForceSyncIfNeeded = false) const;
 	
-	// Async use for emote wheel preview etc.
-	void RequestMontage(FGameplayTag AnimTag, TFunction<void(UAnimMontage*)> OnLoaded);
+	// Async use for emote wheel preview etc. True if found, false if failed.
+	bool RequestMontage(FGameplayTag AnimTag, TFunction<void(UAnimMontage*)> OnLoaded);
 	
 	// Call this to preload entire DA (combat DA on spawn, emote DA on wheel open)
 	void PreloadAll(FStreamableDelegate OnComplete);
