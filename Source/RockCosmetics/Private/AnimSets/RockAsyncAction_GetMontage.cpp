@@ -58,20 +58,20 @@ void URockAsyncAction_GetMontage::Activate()
             continue;
         }
 
-        // Reuse existing RequestMontage — it already handles tag hierarchy walk + already-loaded fast path
+        // Reuse existing RequestMontage - it already handles tag hierarchy walk + already-loaded fast path
         TWeakObjectPtr<URockAsyncAction_GetMontage> WeakThis(this);
         bool bDispatched = Set->RequestMontage(AnimTag, [WeakThis](UAnimMontage* Montage)
         {
             if (!WeakThis.IsValid())
             {
-                return; // silent noop — ability went away
+                return; // silent noop - ability went away
             }
             if (Montage)
             {
                 WeakThis->OnLoaded.Broadcast(Montage);
                 WeakThis->SetReadyToDestroy();
             }
-            // null means this set didn't have it — outer loop handles fallthrough
+            // null means this set didn't have it - outer loop handles fallthrough
         });
 
         if (bDispatched)
