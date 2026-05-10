@@ -7,7 +7,6 @@
 #include "GameplayTagContainer.h"
 #include "Actors/RockMutableTaggedActor.h"
 #include "Cosmetics/RockCharacterPartList.h"
-#include "GameFramework/Character.h"
 #include "Net/UnrealNetwork.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RockPawnComponent_CharacterParts)
@@ -84,14 +83,11 @@ TArray<AActor*> URockPawnComponent_CharacterParts::GetCharacterPartActors() cons
 
 USkeletalMeshComponent* URockPawnComponent_CharacterParts::GetParentMeshComponent() const
 {
-	if (AActor* OwnerActor = GetOwner())
+	if (const AActor* OwnerActor = GetOwner())
 	{
-		if (ACharacter* OwningCharacter = Cast<ACharacter>(OwnerActor))
+		if (USkeletalMeshComponent* MeshComponent = OwnerActor->FindComponentByClass<USkeletalMeshComponent>())
 		{
-			if (USkeletalMeshComponent* MeshComponent = OwningCharacter->GetMesh())
-			{
-				return MeshComponent;
-			}
+			return MeshComponent;
 		}
 	}
 
