@@ -16,6 +16,11 @@ URockAnimSubsystem::URockAnimSubsystem() : Super()
 void URockAnimSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
+	if (!GetWorld()->IsGameWorld())
+	{
+		return;
+	}
+	
 	RebuildCache();
 }
 
