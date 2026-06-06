@@ -23,7 +23,9 @@ URockMutablePawnComponent_CharacterParts::URockMutablePawnComponent_CharacterPar
 void URockMutablePawnComponent_CharacterParts::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-	DOREPLIFETIME(ThisClass, InstanceDescriptor);
+	// Replicate the cosmetic parameter DATA, not a baked byte descriptor. The authority (including a dedicated
+	// server, which never runs Mutable) just mutates this array; each client composes its own mesh from it locally.
+	DOREPLIFETIME(ThisClass, CosmeticMutableEntries);
 }
 
 void URockMutablePawnComponent_CharacterParts::BroadcastChanged()
@@ -60,76 +62,30 @@ void URockMutablePawnComponent_CharacterParts::BroadcastChanged()
 
 		if (const auto usage = mutableTaggedActor->GetUsage())
 		{
-			usage->UpdatedDelegate.BindUObject(this, &ThisClass::OnCustomizableObjectUpdated);
 			usage->UpdateSkeletalMeshAsync();
 		}
+
+		// Flush any cosmetic entries that were applied/replicated before this instance was ready (e.g. equipment
+		// applied at spawn, or entries received on a client before its instance was built), so they compose now.
+		if (CosmeticMutableEntries.Num() > 0)
+		{
+			RequestRecompose();
+		}
 	}
-	
+
 	// TODO:
 	// Support non TaggedActor character parts, which would require a different way to get the CustomizableObjectInstance and bind to updates. 
 	// What if we had an interface that provided us with a list of CustomizableObjectInstances to bind to? That way we could support both the tagged actor 
 	// approach and any other actor/component that implements that interface. We would just loop through all provided instances and bind to their update delegates.
 }
 
-void URockMutablePawnComponent_CharacterParts::OnRep_InstanceDescriptor()
+// The authority changed the replicated cosmetic data — rebuild this client's mesh from it. ExecuteRecompose
+// composes InitialAppearance + CosmeticMutableEntries against THIS machine's own Mutable instance, so it works
+// on clients (which run Mutable) regardless of whether the server (which may not) built anything. If our
+// instance isn't captured yet, ExecuteRecompose no-ops and BroadcastChanged re-flushes once it is.
+void URockMutablePawnComponent_CharacterParts::OnRep_CosmeticMutableEntries()
 {
-	UCustomizableObjectInstance* customObjectInstance = CustomizableObjectInstance.Get();
-	if (!customObjectInstance)
-	{
-		UE_LOG(LogRockCosmetic, Warning, TEXT("URockPawnComponent_CharacterParts::OnRep_InstanceDescriptor: CustomizableObjectInstance is null"));
-		return;
-	}
-	FMemoryReader Reader(InstanceDescriptor);
-	customObjectInstance->LoadDescriptor(Reader);
-	customObjectInstance->UpdateSkeletalMeshAsync();
-}
-
-void URockMutablePawnComponent_CharacterParts::SerializeAndSendInstanceDescriptor()
-{
-	UCustomizableObjectInstance* customObjectInstance = CustomizableObjectInstance.Get();
-	if (!customObjectInstance)
-	{
-		UE_LOG(LogRockCosmetic, Warning, TEXT("URockPawnComponent_CharacterParts::SerializeAndSendInstanceDescriptor: CustomizableObjectInstance is null"));
-		return;
-	}
-	InstanceDescriptor.Reset(InstanceDescriptor.Num());
-	FMemoryWriter Writer(InstanceDescriptor);
-	customObjectInstance->SaveDescriptor(Writer, false);
-
-	// // If we wanted a client change propagate, we must send it to the server to that it replicates it to the other clients
-	// if (GetOwnerRole()/*GetLocalRole()*/ < ROLE_Authority)
-	// {
-	// 	ServerRPCUpdateInstanceDescriptor(InstanceDescriptor);
-	// }
-}
-
-bool URockMutablePawnComponent_CharacterParts::ServerRPCUpdateInstanceDescriptor_Validate(const TArray<uint8>& NewInstanceDescriptor)
-{
-	return true;
-}
-
-void URockMutablePawnComponent_CharacterParts::ServerRPCUpdateInstanceDescriptor_Implementation(const TArray<uint8>& NewInstanceDescriptor)
-{
-	InstanceDescriptor = NewInstanceDescriptor;
-	ENetMode NetMode = GetWorld()->GetNetMode();
-
-	if (NetMode != ENetMode::NM_DedicatedServer)
-	{
-		// No need to update the actual instance if this is a dedicated server with no graphics display
-		OnRep_InstanceDescriptor();
-	}
-}
-
-void URockMutablePawnComponent_CharacterParts::OnCustomizableObjectUpdated()
-{
-	if (GetOwnerRole() == ROLE_Authority)
-	{
-		SerializeAndSendInstanceDescriptor();
-	}
-	else
-	{
-		UE_LOG(LogRockCosmetic, Warning, TEXT("URockPawnComponent_CharacterParts::OnCustomizableSkeletalUpdated: Not authority"));
-	}
+	RequestRecompose();
 }
 
 void URockMutablePawnComponent_CharacterParts::ApplyOptionToDescriptor(FCustomizableObjectInstanceDescriptor& WorkingDescriptor, const FRockMutableOption& Option)
