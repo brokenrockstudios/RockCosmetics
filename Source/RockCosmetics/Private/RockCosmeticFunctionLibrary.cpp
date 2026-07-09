@@ -13,7 +13,7 @@ TArray<UCustomizableObjectInstanceUsage*> URockCosmeticFunctionLibrary::AddCusto
 	TArray<TObjectPtr<UCustomizableObjectInstanceUsage>> Usages;
 	TArray<USkeletalMeshComponent*> Components;
 	
-	for ( int32 componentIndex = 0; componentIndex < CustomizableObjectInstance->GetNumComponents(); ++componentIndex)
+	for ( int32 componentIndex = 0; componentIndex < CustomizableObject->GetComponentCount(); ++componentIndex)
 	{
 		FString SkeletalMeshComponentName = FString::Printf(TEXT("Skeletal Mesh Component %d"), componentIndex);
 
