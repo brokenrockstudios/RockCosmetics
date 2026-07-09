@@ -62,7 +62,6 @@ void URockMutablePawnComponent_CharacterParts::BroadcastChanged()
 
 		if (const auto usage = mutableTaggedActor->GetUsage())
 		{
-			//usage->UpdatedDelegate.BindUObject(this, &ThisClass::OnCustomizableObjectUpdated);
 			usage->UpdateSkeletalMeshAsync();
 		}
 
