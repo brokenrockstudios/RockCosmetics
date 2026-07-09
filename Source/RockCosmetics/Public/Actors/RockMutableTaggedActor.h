@@ -30,7 +30,7 @@ public:
 	
 	/** This is the instance of the Customizable Object that will be used to create the Mutable Character
 	 * This Instance contains all the customization data for the Mutable Character.
-	 * CharacterParts fetches this Instance and replicates it using a serialized InstanceDescriptor
+	 * CharacterParts fetches this Instance and composes it locally from the replicated cosmetic entries.
 	 *
 	 * return: The instance represented in all the actor components
 	 */
