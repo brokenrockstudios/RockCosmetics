@@ -13,6 +13,12 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RockMutablePawnComponent_CharacterParts)
 
+namespace
+{
+	// Bounds ExecuteRecompose's self-retry while waiting for CustomizableObjectInstance to become resolvable.
+	constexpr int32 MaxExecuteRecomposeRetries = 10;
+}
+
 URockMutablePawnComponent_CharacterParts::URockMutablePawnComponent_CharacterParts()
 {
 	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
@@ -47,13 +53,15 @@ void URockMutablePawnComponent_CharacterParts::BroadcastChanged()
 			continue;
 		}
 
-		CustomizableObjectInstance = mutableTaggedActor->GetCustomizableObjectInstance();
-		if (CustomizableObjectInstance == nullptr)
+		UCustomizableObjectInstance* instance = mutableTaggedActor->GetCustomizableObjectInstance();
+		if (instance == nullptr)
 		{
-			// This always triggers on first broadcast, so we can skip/ignore this 
+			// This always triggers on first broadcast, so we can skip/ignore this. ExecuteRecompose will retry
+			// on its own (via ResolveCustomizableObjectInstance) until this resolves, so we don't lose anything.
 			UE_LOG(LogRockCosmetic, Verbose, TEXT("mutableTaggedActor's CustomizableObjectInstance is null"));
 			continue;
 		}
+		CustomizableObjectInstance = instance;
 
 		if (InitialAppearanceDescriptor.IsEmpty())
 		{
@@ -64,13 +72,15 @@ void URockMutablePawnComponent_CharacterParts::BroadcastChanged()
 		{
 			usage->UpdateSkeletalMeshAsync();
 		}
+	}
 
-		// Flush any cosmetic entries that were applied/replicated before this instance was ready (e.g. equipment
-		// applied at spawn, or entries received on a client before its instance was built), so they compose now.
-		if (CosmeticMutableEntries.Num() > 0)
-		{
-			RequestRecompose();
-		}
+	// Flush any cosmetic entries that were applied/replicated before this instance was ready (e.g. equipment
+	// applied at spawn, or entries received on a client before its instance was built), so they compose now.
+	// This runs even if none of the entries above resolved an instance this pass — ExecuteRecompose retries
+	// via ResolveCustomizableObjectInstance until one is available, instead of silently dropping the request.
+	if (CosmeticMutableEntries.Num() > 0)
+	{
+		RequestRecompose();
 	}
 
 	// TODO:
@@ -82,7 +92,8 @@ void URockMutablePawnComponent_CharacterParts::BroadcastChanged()
 // The authority changed the replicated cosmetic data — rebuild this client's mesh from it. ExecuteRecompose
 // composes InitialAppearance + CosmeticMutableEntries against THIS machine's own Mutable instance, so it works
 // on clients (which run Mutable) regardless of whether the server (which may not) built anything. If our
-// instance isn't captured yet, ExecuteRecompose no-ops and BroadcastChanged re-flushes once it is.
+// instance isn't resolvable yet, ExecuteRecompose retries itself (see ResolveCustomizableObjectInstance)
+// until it is, rather than depending on BroadcastChanged firing again.
 void URockMutablePawnComponent_CharacterParts::OnRep_CosmeticMutableEntries()
 {
 	RequestRecompose();
@@ -144,6 +155,31 @@ void URockMutablePawnComponent_CharacterParts::RemoveCosmeticLayer(int32 LayerIn
 	}
 }
 
+UCustomizableObjectInstance* URockMutablePawnComponent_CharacterParts::ResolveCustomizableObjectInstance()
+{
+	if (UCustomizableObjectInstance* Cached = CustomizableObjectInstance.Get())
+	{
+		return Cached;
+	}
+
+	for (const FRockAppliedCharacterPartEntry& Entry : CharacterPartList.Entries)
+	{
+		if (Entry.SpawnedComponent == nullptr)
+		{
+			continue;
+		}
+		if (const ARockMutableTaggedActor* mutableTaggedActor = Cast<ARockMutableTaggedActor>(Entry.SpawnedComponent->GetChildActor()))
+		{
+			if (UCustomizableObjectInstance* Instance = mutableTaggedActor->GetCustomizableObjectInstance())
+			{
+				CustomizableObjectInstance = Instance;
+				return Instance;
+			}
+		}
+	}
+	return nullptr;
+}
+
 void URockMutablePawnComponent_CharacterParts::CaptureInitialAppearance()
 {
 	if (InitialAppearanceDescriptor.Num() > 0)
@@ -180,12 +216,31 @@ void URockMutablePawnComponent_CharacterParts::ExecuteRecompose()
 	bRecomposePending = false;
 
 	// LAYER 0: Start with our saved Base Appearance
-	UCustomizableObjectInstance* customObjectInstance = CustomizableObjectInstance.Get();
+	UCustomizableObjectInstance* customObjectInstance = ResolveCustomizableObjectInstance();
 	if (!customObjectInstance)
 	{
-		UE_LOG(LogRockCosmetic, Error, TEXT("URockPawnComponent_CharacterParts::RefreshAppearance: CustomizableObjectInstance is null"));
+		// The Mutable-tagged child actor may not have finished spawning yet — this reliably happens on the first
+		// attempt right after a part is added or replicated. Retry for a bounded number of ticks instead of
+		// silently dropping already-replicated cosmetics; a dedicated server never builds an instance, so don't
+		// retry there.
+		if (!IsNetMode(NM_DedicatedServer) && RecomposeRetryCount < MaxExecuteRecomposeRetries)
+		{
+			++RecomposeRetryCount;
+			RequestRecompose();
+		}
+		else
+		{
+			UE_LOG(LogRockCosmetic, Error, TEXT("URockMutablePawnComponent_CharacterParts::ExecuteRecompose: CustomizableObjectInstance is null, giving up after %d attempt(s)"), RecomposeRetryCount);
+		}
 		return;
 	}
+	RecomposeRetryCount = 0;
+
+	if (InitialAppearanceDescriptor.IsEmpty())
+	{
+		CaptureInitialAppearance();
+	}
+
 	UCustomizableObject* CO = customObjectInstance->GetCustomizableObject();
 	if (!CO)
 	{

@@ -37,6 +37,12 @@ public:
 	UPROPERTY()
 	int32 CosmeticHandleCount = 0;
 
+	// Consecutive ExecuteRecompose attempts spent waiting for CustomizableObjectInstance to become resolvable
+	// (e.g. the Mutable-tagged child actor hasn't finished spawning yet). Reset once resolved; bounded so a
+	// pawn that can never resolve one doesn't retry forever.
+	UPROPERTY()
+	int32 RecomposeRetryCount = 0;
+
 	// The replicated source of truth for cosmetics. The authority mutates it (AddCosmeticEntry / RemoveCosmeticEntry);
 	// clients receive it via OnRep_CosmeticMutableEntries and recompose locally. Replicating the parameter DATA (rather
 	// than a server-baked InstanceDescriptor) is what makes this work on a dedicated server, which never runs Mutable
@@ -59,4 +65,8 @@ public:
 	void RequestRecompose();
 	void ExecuteRecompose();
 	void ApplyOptionToDescriptor(FCustomizableObjectInstanceDescriptor& WorkingDescriptor, const FRockMutableOption& Option);
+
+	// Finds this pawn's Mutable-tagged character part's CustomizableObjectInstance (caching it into
+	// CustomizableObjectInstance), or null if it hasn't spawned yet.
+	UCustomizableObjectInstance* ResolveCustomizableObjectInstance();
 };
