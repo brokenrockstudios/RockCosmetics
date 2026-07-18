@@ -20,6 +20,7 @@ public:
 	URockMutablePawnComponent_CharacterParts();
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	virtual void OnRegister() override;
 
 	virtual void BroadcastChanged() override;
 	// ================================= MUTABLE =================================
@@ -34,8 +35,6 @@ public:
 
 	UPROPERTY()
 	bool bRecomposePending = false;
-	UPROPERTY()
-	int32 CosmeticHandleCount = 0;
 
 	// Consecutive ExecuteRecompose attempts spent waiting for CustomizableObjectInstance to become resolvable
 	// (e.g. the Mutable-tagged child actor hasn't finished spawning yet). Reset once resolved; bounded so a
@@ -44,15 +43,11 @@ public:
 	int32 RecomposeRetryCount = 0;
 
 	// The replicated source of truth for cosmetics. The authority mutates it (AddCosmeticEntry / RemoveCosmeticEntry);
-	// clients receive it via OnRep_CosmeticMutableEntries and recompose locally. Replicating the parameter DATA (rather
-	// than a server-baked InstanceDescriptor) is what makes this work on a dedicated server, which never runs Mutable
-	// and so can never build a descriptor to replicate.
-	UPROPERTY(ReplicatedUsing = OnRep_CosmeticMutableEntries)
-	TArray<FRockMutableCosmeticEntry> CosmeticMutableEntries;
-
-	// Replicated cosmetic data changed on this client — recompose the local mesh.
-	UFUNCTION()
-	void OnRep_CosmeticMutableEntries();
+	// clients receive per-entry FastArraySerializer callbacks and recompose locally. Replicating the parameter
+	// DATA (rather than a server-baked InstanceDescriptor) is what makes this work on a dedicated server, which
+	// never runs Mutable and so can never build a descriptor to replicate.
+	UPROPERTY(Replicated)
+	FRockMutableCosmeticEntryList CosmeticMutableEntries;
 
 	// Returns a handle that can be used to remove this entry later. CosmeticHandle is just an int that increments with each addition, it has no meaning other than being a unique identifier for this entry.
 	FRockCosmeticHandle AddCosmeticEntry(int32 LayerIndex, const FRockMutableOption& MutableOption);

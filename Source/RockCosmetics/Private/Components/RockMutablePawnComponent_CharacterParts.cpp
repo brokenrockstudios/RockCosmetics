@@ -31,7 +31,18 @@ void URockMutablePawnComponent_CharacterParts::GetLifetimeReplicatedProps(TArray
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	// Replicate the cosmetic parameter DATA, not a baked byte descriptor. The authority (including a dedicated
 	// server, which never runs Mutable) just mutates this array; each client composes its own mesh from it locally.
+	// FRockMutableCosmeticEntryList is a FastArraySerializer, so only added/removed/changed entries are sent.
 	DOREPLIFETIME(ThisClass, CosmeticMutableEntries);
+}
+
+void URockMutablePawnComponent_CharacterParts::OnRegister()
+{
+	Super::OnRegister();
+
+	if (!IsTemplate())
+	{
+		CosmeticMutableEntries.SetOwnerComponent(this);
+	}
 }
 
 void URockMutablePawnComponent_CharacterParts::BroadcastChanged()
@@ -68,15 +79,21 @@ void URockMutablePawnComponent_CharacterParts::BroadcastChanged()
 			CaptureInitialAppearance();
 		}
 
-		if (const auto usage = mutableTaggedActor->GetUsage())
+		// If there are cosmetic entries pending, ExecuteRecompose (triggered below) will call
+		// UpdateSkeletalMeshAsync() itself once it's finished composing them. Doing it here too would just be a
+		// wasted mesh build that gets immediately superseded. Only do it here when there's nothing to compose.
+		if (CosmeticMutableEntries.Num() == 0)
 		{
-			usage->UpdateSkeletalMeshAsync();
+			if (const auto usage = mutableTaggedActor->GetUsage())
+			{
+				usage->UpdateSkeletalMeshAsync();
+			}
 		}
 	}
 
 	// Flush any cosmetic entries that were applied/replicated before this instance was ready (e.g. equipment
 	// applied at spawn, or entries received on a client before its instance was built), so they compose now.
-	// This runs even if none of the entries above resolved an instance this pass — ExecuteRecompose retries
+	// This runs even if none of the entries above resolved an instance this pass. ExecuteRecompose retries
 	// via ResolveCustomizableObjectInstance until one is available, instead of silently dropping the request.
 	if (CosmeticMutableEntries.Num() > 0)
 	{
@@ -89,16 +106,6 @@ void URockMutablePawnComponent_CharacterParts::BroadcastChanged()
 	// approach and any other actor/component that implements that interface. We would just loop through all provided instances and bind to their update delegates.
 }
 
-// The authority changed the replicated cosmetic data — rebuild this client's mesh from it. ExecuteRecompose
-// composes InitialAppearance + CosmeticMutableEntries against THIS machine's own Mutable instance, so it works
-// on clients (which run Mutable) regardless of whether the server (which may not) built anything. If our
-// instance isn't resolvable yet, ExecuteRecompose retries itself (see ResolveCustomizableObjectInstance)
-// until it is, rather than depending on BroadcastChanged firing again.
-void URockMutablePawnComponent_CharacterParts::OnRep_CosmeticMutableEntries()
-{
-	RequestRecompose();
-}
-
 void URockMutablePawnComponent_CharacterParts::ApplyOptionToDescriptor(FCustomizableObjectInstanceDescriptor& WorkingDescriptor, const FRockMutableOption& Option)
 {
 	for (const auto& boolParam : Option.BoolParameters)
@@ -107,52 +114,76 @@ void URockMutablePawnComponent_CharacterParts::ApplyOptionToDescriptor(FCustomiz
 	}
 	for (const auto& intParam : Option.IntParameters)
 	{
+		
 		WorkingDescriptor.SetIntParameterSelectedOption(intParam.ParameterName, intParam.ParameterValueName);
+		// TODO: Do we still leverage the original parameter value when doing this? 
+		// Or offset the remaining?  Or do the following instead of the above line?
+		// NOTE: Need an actual test case to verify proper use case
+		// for (int32 index = 0; index < intParam.ParameterRangeValueNames.Num(); ++index)
+		// {
+		// 	WorkingDescriptor.SetIntParameterSelectedOption(intParam.ParameterName, intParam.ParameterRangeValueNames[index], index);
+		// }
 	}
-	// TODO: more...
+	for (const auto& floatParam : Option.FloatParameters)
+	{
+		WorkingDescriptor.SetFloatParameterSelectedOption(floatParam.ParameterName, floatParam.ParameterValue);
+		
+		// for (int32 index = 0; index < floatParam.ParameterRangeValues.Num(); ++index)
+		// {
+		// 	WorkingDescriptor.SetFloatParameterSelectedOption(floatParam.ParameterName, floatParam.ParameterRangeValues[index], index);
+		// }
+	}
+	for (const auto& textureParam : Option.TextureParameters)
+	{
+		WorkingDescriptor.SetTextureParameterSelectedOption(textureParam.ParameterName, textureParam.ParameterValue, INDEX_NONE);
+		
+		// for (int32 index = 0; index < textureParam.ParameterRangeValues.Num(); ++index)
+		// {
+		// 	WorkingDescriptor.SetTextureParameterSelectedOption(textureParam.ParameterName, textureParam.ParameterRangeValues[index], index);
+		// }
+	}
+	for (const auto& vectorParam : Option.VectorParameters)
+	{
+		WorkingDescriptor.SetVectorParameterSelectedOption(vectorParam.ParameterName, vectorParam.ParameterValue);
+	}
+	for (const auto& Param : Option.ProjectorParameters)
+	{
+		WorkingDescriptor.SetProjectorValue(
+			Param.ParameterName,
+			FVector(Param.Value.Position),
+			FVector(Param.Value.Direction),
+			FVector(Param.Value.Up),
+			FVector(Param.Value.Scale),
+			Param.Value.Angle);
+		
+		// for (int32 index = 0; index < Param.RangeValues.Num(); index++)
+		// {
+		// 	WorkingDescriptor.SetProjectorValue(
+		// 		Param.ParameterName,
+		// 		FVector(Param.RangeValues[index].Position),
+		// 		FVector(Param.RangeValues[index].Direction),
+		// 		FVector(Param.RangeValues[index].Up),
+		// 		FVector(Param.RangeValues[index].Scale),
+		// 		Param.RangeValues[index].Angle,
+		// 		index);
+		// }
+	}
 }
 
 FRockCosmeticHandle URockMutablePawnComponent_CharacterParts::AddCosmeticEntry(int32 LayerIndex, const FRockMutableOption& MutableOption)
 {
-	CosmeticHandleCount++;
-	FRockCosmeticHandle newHandle{CosmeticHandleCount};
-
-	FRockMutableCosmeticEntry newEntry = FRockMutableCosmeticEntry{LayerIndex, newHandle, MutableOption};
-	CosmeticMutableEntries.Add(newEntry);
-
-	// Keep it sorted so RefreshAppearance is always a simple linear loop
-	CosmeticMutableEntries.Sort();
-
-	RequestRecompose();
-	return newHandle;
+	// AddEntry marks the new entry dirty for replication and requests a recompose on our side.
+	return CosmeticMutableEntries.AddEntry(LayerIndex, MutableOption);
 }
 
 void URockMutablePawnComponent_CharacterParts::RemoveCosmeticEntry(const FRockCosmeticHandle& CosmeticHandle)
 {
-	int32 removedCount = CosmeticMutableEntries.RemoveAll(
-		[CosmeticHandle](const FRockMutableCosmeticEntry& Entry)
-		{
-			return Entry.CosmeticHandle == CosmeticHandle;
-		});
-
-	if (removedCount > 0)
-	{
-		RequestRecompose();
-	}
+	CosmeticMutableEntries.RemoveByHandle(CosmeticHandle);
 }
 
 void URockMutablePawnComponent_CharacterParts::RemoveCosmeticLayer(int32 LayerIndex)
 {
-	int32 removedCount = CosmeticMutableEntries.RemoveAll(
-		[LayerIndex](const FRockMutableCosmeticEntry& Entry)
-		{
-			return Entry.LayerIndex == LayerIndex;
-		});
-
-	if (removedCount > 0)
-	{
-		RequestRecompose();
-	}
+	CosmeticMutableEntries.RemoveByLayer(LayerIndex);
 }
 
 UCustomizableObjectInstance* URockMutablePawnComponent_CharacterParts::ResolveCustomizableObjectInstance()
@@ -219,10 +250,11 @@ void URockMutablePawnComponent_CharacterParts::ExecuteRecompose()
 	UCustomizableObjectInstance* customObjectInstance = ResolveCustomizableObjectInstance();
 	if (!customObjectInstance)
 	{
-		// The Mutable-tagged child actor may not have finished spawning yet — this reliably happens on the first
+		// The Mutable-tagged child actor may not have finished spawning yet. We probably want to rehook into the
+		// broadcast even from mutable on non-dedicated servers in the future. However, until then this usually happens on the first
 		// attempt right after a part is added or replicated. Retry for a bounded number of ticks instead of
 		// silently dropping already-replicated cosmetics; a dedicated server never builds an instance, so don't
-		// retry there.
+		// retry there. 
 		if (!IsNetMode(NM_DedicatedServer) && RecomposeRetryCount < MaxExecuteRecomposeRetries)
 		{
 			++RecomposeRetryCount;
@@ -254,8 +286,9 @@ void URockMutablePawnComponent_CharacterParts::ExecuteRecompose()
 		WorkingDescriptor.LoadDescriptor(memoryReader);
 	}
 
-	// the Layers should already be appropriately sorted by priority, so we just loop through them and apply all the options we have stored for each layer
-	for (const FRockMutableCosmeticEntry& CosmeticEntry : CosmeticMutableEntries)
+	// CosmeticMutableEntries' own array order isn't guaranteed to match layer priority (FastArraySerializer only
+	// replicates added/removed/changed entries, not reorders), so sort here rather than relying on insertion order.
+	for (const FRockMutableCosmeticEntry& CosmeticEntry : CosmeticMutableEntries.GetSortedEntries())
 	{
 		ApplyOptionToDescriptor(WorkingDescriptor, CosmeticEntry.Option);
 	}

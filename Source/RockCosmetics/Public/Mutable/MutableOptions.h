@@ -42,13 +42,12 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "MutableCosmetic")
 	TArray<FRockCustomizableObjectFloatParameterValue> FloatParameters;
 
-	// @TODO
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "MutableCosmetic")
-	TArray<FCustomizableObjectTextureParameterValue> TextureParameters;
+	TArray<FRockCustomizableObjectTextureParameterValue> TextureParameters;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "MutableCosmetic")
-	TArray<FCustomizableObjectVectorParameterValue> VectorParameters;
+	TArray<FRockCustomizableObjectVectorParameterValue> VectorParameters;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "MutableCosmetic")
-	TArray<FCustomizableObjectProjectorParameterValue> ProjectorParameters;
+	TArray<FRockCustomizableObjectProjectorParameterValue> ProjectorParameters;
 };
