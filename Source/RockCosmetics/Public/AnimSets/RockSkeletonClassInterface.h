@@ -18,5 +18,5 @@ class ROCKCOSMETICS_API IRockSkeletonClassInterface
 	GENERATED_BODY()
 
 public:
-	FGameplayTag GetSkeletonClass() const;
+	virtual FGameplayTag GetSkeletonClass() const;
 };
