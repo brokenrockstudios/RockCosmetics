@@ -48,7 +48,7 @@ private:
 
 // Replicated list of applied character parts
 USTRUCT(BlueprintType)
-struct FRockCharacterPartList : public FFastArraySerializer
+struct ROCKCOSMETICS_API FRockCharacterPartList : public FFastArraySerializer
 {
 	GENERATED_BODY()
 

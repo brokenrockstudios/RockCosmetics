@@ -62,7 +62,7 @@ struct FRockAnimBodyStyleSelectionEntry
 };
 
 USTRUCT(BlueprintType)
-struct FRockAnimBodyStyleSelectionSet
+struct ROCKCOSMETICS_API FRockAnimBodyStyleSelectionSet
 {
 	GENERATED_BODY()
 		

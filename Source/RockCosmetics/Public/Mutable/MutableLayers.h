@@ -77,7 +77,7 @@ struct FRockMutableCosmeticEntry : public FFastArraySerializerItem
 // entries, so a server-side reorder of otherwise-unchanged entries is never sent. Anything that needs layer
 // priority order (e.g. composing the final descriptor) must be sorted at the point of use. See GetSortedEntries().
 USTRUCT()
-struct FRockMutableCosmeticEntryList : public FFastArraySerializer
+struct ROCKCOSMETICS_API FRockMutableCosmeticEntryList : public FFastArraySerializer
 {
 	GENERATED_BODY()
 

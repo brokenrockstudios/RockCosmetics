@@ -20,6 +20,11 @@
 			"Name": "RockCosmetics",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "RockCosmeticsTests",
+			"Type": "Developer",
+			"LoadingPhase": "Default"
 		}
 	],
 	"Plugins": [
