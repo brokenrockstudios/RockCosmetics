@@ -149,62 +149,66 @@ bool FRockCharacterPartList::SpawnActorForEntry(FRockAppliedCharacterPartEntry& 
 {
 	bool bCreatedAnyActors = false;
 
-	if (ensure(OwnerComponent) && !OwnerComponent->IsNetMode(NM_DedicatedServer))
+	if (!ensure(OwnerComponent))
 	{
-		if (Entry.Part.PartClass != nullptr)
+		return false;
+	}
+
+	// A dedicated server never spawns part actors (the entry still replicates), so this is expected and not worth a log.
+	if (OwnerComponent->IsNetMode(NM_DedicatedServer))
+	{
+		return false;
+	}
+
+	if (Entry.Part.PartClass != nullptr)
+	{
+		UWorld* World = OwnerComponent->GetWorld();
+
+		if (USceneComponent* ComponentToAttachTo = OwnerComponent->GetSceneComponentToAttachTo())
 		{
-			UWorld* World = OwnerComponent->GetWorld();
+			const FTransform SpawnTransform = ComponentToAttachTo->GetSocketTransform(Entry.Part.SocketName);
 
-			if (USceneComponent* ComponentToAttachTo = OwnerComponent->GetSceneComponentToAttachTo())
+			UChildActorComponent* PartComponent = NewObject<UChildActorComponent>(OwnerComponent->GetOwner());
+
+			PartComponent->SetupAttachment(ComponentToAttachTo, Entry.Part.SocketName);
+			PartComponent->SetChildActorClass(Entry.Part.PartClass);
+			PartComponent->RegisterComponent();
+
+			if (AActor* SpawnedActor = PartComponent->GetChildActor())
 			{
-				const FTransform SpawnTransform = ComponentToAttachTo->GetSocketTransform(Entry.Part.SocketName);
-
-				UChildActorComponent* PartComponent = NewObject<UChildActorComponent>(OwnerComponent->GetOwner());
-
-				PartComponent->SetupAttachment(ComponentToAttachTo, Entry.Part.SocketName);
-				PartComponent->SetChildActorClass(Entry.Part.PartClass);
-				PartComponent->RegisterComponent();
-
-				if (AActor* SpawnedActor = PartComponent->GetChildActor())
+				switch (Entry.Part.CollisionMode)
 				{
-					switch (Entry.Part.CollisionMode)
-					{
-					case ERockCharacterCustomizationCollisionMode::UseCollisionFromCharacterPart:
-						// Do nothing
-						break;
+				case ERockCharacterCustomizationCollisionMode::UseCollisionFromCharacterPart:
+					// Do nothing
+					break;
 
-					case ERockCharacterCustomizationCollisionMode::NoCollision:
-						SpawnedActor->SetActorEnableCollision(false);
-						break;
-					}
-
-					// Set up a direct tick dependency to work around the child actor component not providing one
-					if (USceneComponent* SpawnedRootComponent = SpawnedActor->GetRootComponent())
-					{
-						SpawnedRootComponent->AddTickPrerequisiteComponent(ComponentToAttachTo);
-					}
-				}
-				else
-				{
-					UE_LOG(LogRockCosmetic, Warning, TEXT("FRockCharacterPartList::SpawnActorForEntry: Failed to get child actor from component"));
-					
+				case ERockCharacterCustomizationCollisionMode::NoCollision:
+					SpawnedActor->SetActorEnableCollision(false);
+					break;
 				}
 
-				Entry.SpawnedComponent = PartComponent;
-				bCreatedAnyActors = true;
-			}else
-			{
-				UE_LOG(LogRockCosmetic, Warning, TEXT("FRockCharacterPartList::SpawnActorForEntry: ComponentToAttachTo is null"));
+				// Set up a direct tick dependency to work around the child actor component not providing one
+				if (USceneComponent* SpawnedRootComponent = SpawnedActor->GetRootComponent())
+				{
+					SpawnedRootComponent->AddTickPrerequisiteComponent(ComponentToAttachTo);
+				}
 			}
-		}
-		else
+			else
+			{
+				UE_LOG(LogRockCosmetic, Warning, TEXT("FRockCharacterPartList::SpawnActorForEntry: Failed to get child actor from component"));
+				
+			}
+
+			Entry.SpawnedComponent = PartComponent;
+			bCreatedAnyActors = true;
+		}else
 		{
-			UE_LOG(LogRockCosmetic, Warning, TEXT("FRockCharacterPartList::SpawnActorForEntry: PartClass is null"));
+			UE_LOG(LogRockCosmetic, Warning, TEXT("FRockCharacterPartList::SpawnActorForEntry: ComponentToAttachTo is null"));
 		}
 	}
 	else
 	{
-		UE_LOG(LogRockCosmetic, Warning, TEXT("FRockCharacterPartList::SpawnActorForEntry: OwnerComponent is null or in dedicated server mode"));
+		UE_LOG(LogRockCosmetic, Warning, TEXT("FRockCharacterPartList::SpawnActorForEntry: PartClass is null"));
 	}
 
 	return bCreatedAnyActors;

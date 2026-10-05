@@ -23,7 +23,7 @@
 		},
 		{
 			"Name": "RockCosmeticsTests",
-			"Type": "Developer",
+			"Type": "DeveloperTool",
 			"LoadingPhase": "Default"
 		}
 	],
