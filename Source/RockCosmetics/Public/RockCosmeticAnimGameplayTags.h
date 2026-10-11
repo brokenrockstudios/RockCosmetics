@@ -6,16 +6,16 @@
 #include "NativeGameplayTags.h"
 #include "UObject/Object.h"
 
-#define UE_API ROCKCOSMETICS_API
+#define TAG_EXTERN(Name) ROCKCOSMETICS_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Name)
 
 namespace RockCosmeticAnimGameplayTags
 {
-	UE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cosmetic_SkeletonClass);
+	TAG_EXTERN(Cosmetic_SkeletonClass);
 
 	// Bipedal humanoid skeleton class. Use this for any skeleton compatible with standard humanoid montages,
 	// regardless of proportions (e.g. SK_Mannequin, Quinn, MetaHuman, etc.). Only diverge to a new SkeletonClass
 	// when the skeleton requires its own incompatible montage set.
-	UE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cosmetic_SkeletonClass_HumanoidStandard);
+	TAG_EXTERN(Cosmetic_SkeletonClass_HumanoidStandard);
 }
 
-#undef UE_API
+#undef TAG_EXTERN
