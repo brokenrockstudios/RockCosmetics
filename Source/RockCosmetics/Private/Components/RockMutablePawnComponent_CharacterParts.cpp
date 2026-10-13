@@ -57,38 +57,24 @@ void URockMutablePawnComponent_CharacterParts::BroadcastChanged()
 			continue;
 		}
 		// It's a primary character
-		const ARockMutableTaggedActor* mutableTaggedActor = Cast<ARockMutableTaggedActor>(Entry.SpawnedComponent->GetChildActor());
+		ARockMutableTaggedActor* mutableTaggedActor = Cast<ARockMutableTaggedActor>(Entry.SpawnedComponent->GetChildActor());
 		if (mutableTaggedActor == nullptr)
 		{
 			UE_LOG(LogRockCosmetic, Warning, TEXT("MutableTaggedActor is null"));
 			continue;
 		}
 
-		UCustomizableObjectInstance* instance = mutableTaggedActor->GetCustomizableObjectInstance();
-		if (instance == nullptr)
+		if (mutableTaggedActor->IsWaitingForCustomizableObject())
 		{
-			// This always triggers on first broadcast, so we can skip/ignore this. ExecuteRecompose will retry
-			// on its own (via ResolveCustomizableObjectInstance) until this resolves, so we don't lose anything.
-			UE_LOG(LogRockCosmetic, Verbose, TEXT("mutableTaggedActor's CustomizableObjectInstance is null"));
+			// Its CustomizableObject is still loading or compiling (editor only), pick the instance up once it's ready.
+			if (!mutableTaggedActor->OnCustomizableObjectInstanceReady.IsBoundToObject(this))
+			{
+				mutableTaggedActor->OnCustomizableObjectInstanceReady.AddUObject(this, &ThisClass::HandleMutableInstanceReady);
+			}
 			continue;
 		}
-		CustomizableObjectInstance = instance;
 
-		if (InitialAppearanceDescriptor.IsEmpty())
-		{
-			CaptureInitialAppearance();
-		}
-
-		// If there are cosmetic entries pending, ExecuteRecompose (triggered below) will call
-		// UpdateSkeletalMeshAsync() itself once it's finished composing them. Doing it here too would just be a
-		// wasted mesh build that gets immediately superseded. Only do it here when there's nothing to compose.
-		if (CosmeticMutableEntries.Num() == 0)
-		{
-			if (const auto usage = mutableTaggedActor->GetUsage())
-			{
-				usage->UpdateSkeletalMeshAsync();
-			}
-		}
+		UseMutableInstance(*mutableTaggedActor);
 	}
 
 	// Flush any cosmetic entries that were applied/replicated before this instance was ready (e.g. equipment
@@ -104,6 +90,66 @@ void URockMutablePawnComponent_CharacterParts::BroadcastChanged()
 	// Support non TaggedActor character parts, which would require a different way to get the CustomizableObjectInstance and bind to updates. 
 	// What if we had an interface that provided us with a list of CustomizableObjectInstances to bind to? That way we could support both the tagged actor 
 	// approach and any other actor/component that implements that interface. We would just loop through all provided instances and bind to their update delegates.
+}
+
+void URockMutablePawnComponent_CharacterParts::UseMutableInstance(const ARockMutableTaggedActor& MutableTaggedActor)
+{
+	UCustomizableObjectInstance* instance = MutableTaggedActor.GetCustomizableObjectInstance();
+	if (instance == nullptr)
+	{
+		// The actor has no CustomizableObject, or it failed to compile. A part that is still waiting for its
+		// CustomizableObject never gets here, it calls HandleMutableInstanceReady once it's ready.
+		UE_LOG(LogRockCosmetic, Verbose, TEXT("mutableTaggedActor's CustomizableObjectInstance is null"));
+		return;
+	}
+	CustomizableObjectInstance = instance;
+
+	if (InitialAppearanceDescriptor.IsEmpty())
+	{
+		CaptureInitialAppearance();
+	}
+
+	// If there are cosmetic entries pending, ExecuteRecompose (triggered by the caller) will call
+	// UpdateSkeletalMeshAsync() itself once it's finished composing them. Doing it here too would just be a
+	// wasted mesh build that gets immediately superseded. Only do it here when there's nothing to compose.
+	if (CosmeticMutableEntries.Num() == 0)
+	{
+		if (const auto usage = MutableTaggedActor.GetUsage())
+		{
+			usage->UpdateSkeletalMeshAsync();
+		}
+	}
+}
+
+void URockMutablePawnComponent_CharacterParts::HandleMutableInstanceReady(ARockMutableTaggedActor* MutableTaggedActor)
+{
+	MutableTaggedActor->OnCustomizableObjectInstanceReady.RemoveAll(this);
+	UseMutableInstance(*MutableTaggedActor);
+
+	// Entries applied while the part was waiting (e.g. equipment applied at spawn) compose now.
+	if (CosmeticMutableEntries.Num() > 0)
+	{
+		RequestRecompose();
+	}
+}
+
+bool URockMutablePawnComponent_CharacterParts::IsWaitingForMutableInstance() const
+{
+	for (const FRockAppliedCharacterPartEntry& Entry : CharacterPartList.Entries)
+	{
+		if (Entry.SpawnedComponent == nullptr)
+		{
+			continue;
+		}
+		if (const ARockMutableTaggedActor* mutableTaggedActor = Cast<ARockMutableTaggedActor>(Entry.SpawnedComponent->GetChildActor()))
+		{
+			if (mutableTaggedActor->IsWaitingForCustomizableObject())
+			{
+				return true;
+			}
+		}
+	}
+	return false;
 }
 
 void URockMutablePawnComponent_CharacterParts::ApplyOptionToDescriptor(FCustomizableObjectInstanceDescriptor& WorkingDescriptor, const FRockMutableOption& Option)
@@ -248,6 +294,13 @@ void URockMutablePawnComponent_CharacterParts::ExecuteRecompose()
 
 	// LAYER 0: Start with our saved Base Appearance
 	UCustomizableObjectInstance* customObjectInstance = ResolveCustomizableObjectInstance();
+	if (!customObjectInstance && IsWaitingForMutableInstance())
+	{
+		// A part's CustomizableObject is still compiling, which can take longer than the retries below.
+		// HandleMutableInstanceReady requests the recompose again once it's ready.
+		RecomposeRetryCount = 0;
+		return;
+	}
 	if (!customObjectInstance)
 	{
 		// The Mutable-tagged child actor may not have finished spawning yet. We probably want to rehook into the
