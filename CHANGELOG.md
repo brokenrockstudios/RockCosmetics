@@ -1,5 +1,10 @@
 # Changelog
 
+## 2610.1301
+
+- Fixed `ARockMutableTaggedActor` spawning without a mesh in the editor when its CustomizableObject wasn't compiled yet (the first PIE of a session, or compiled data invalidated by a changed dependency). It now requests the compile and builds its usages once it finishes; `URockMutablePawnComponent_CharacterParts` picks the part up then.
+- Added `On Customizable Object Instance Ready` (Blueprint) / `OnCustomizableObjectInstanceReady` (native) to `ARockMutableTaggedActor`. Set initial instance parameters there instead of in BeginPlay, where the instance may not exist yet.
+
 ## 2610.0901
 
 - Tests module is `UncookedOnly` instead of `DeveloperTool`, so the staged game target no longer links it (T-220).

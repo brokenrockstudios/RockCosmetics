@@ -10,6 +10,7 @@
 #include "RockMutablePawnComponent_CharacterParts.generated.h"
 
 struct FRockMutableOption;
+class ARockMutableTaggedActor;
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class ROCKCOSMETICS_API URockMutablePawnComponent_CharacterParts : public URockPawnComponent_CharacterParts
@@ -64,4 +65,13 @@ public:
 	// Finds this pawn's Mutable-tagged character part's CustomizableObjectInstance (caching it into
 	// CustomizableObjectInstance), or null if it hasn't spawned yet.
 	UCustomizableObjectInstance* ResolveCustomizableObjectInstance();
+
+private:
+	// Caches the part's instance, captures the base appearance and builds the mesh unless a recompose will.
+	void UseMutableInstance(const ARockMutableTaggedActor& MutableTaggedActor);
+
+	// A part whose CustomizableObject was still loading or compiling when BroadcastChanged ran (editor only).
+	void HandleMutableInstanceReady(ARockMutableTaggedActor* MutableTaggedActor);
+
+	bool IsWaitingForMutableInstance() const;
 };

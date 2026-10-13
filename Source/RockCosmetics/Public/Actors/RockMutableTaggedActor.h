@@ -9,6 +9,9 @@
 #include "RockMutableTaggedActor.generated.h"
 
 class UCustomizableObjectInstanceUsage;
+struct FCompileCallbackParams;
+
+DECLARE_MULTICAST_DELEGATE_OneParam(FRockOnCustomizableObjectInstanceReady, class ARockMutableTaggedActor* /*MutableTaggedActor*/);
 
 // Primary Mutable Character actor. Useful for the main player character
 UCLASS(ClassGroup = RockCosmetic, Blueprintable, ComponentWrapperClass)
@@ -18,8 +21,16 @@ class ROCKCOSMETICS_API ARockMutableTaggedActor : public ARockSkeletalTaggedActo
 public:
 	// ~ Begin AActor Interface
 	virtual void PostInitializeComponents() override;
+	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	// ~ End AActor Interface
+
+	/** True while the CustomizableObject is still loading or compiling (editor only). Until then there is no
+	 * instance and no usages; OnCustomizableObjectInstanceReady fires once they exist. */
+	bool IsWaitingForCustomizableObject() const { return bWaitingForCustomizableObject; }
+
+	/** Fires once the instance is usable, never before BeginPlay. */
+	FRockOnCustomizableObjectInstanceReady OnCustomizableObjectInstanceReady;
 
 	
 	/** This is the main customizable object that will be used to create the Mutable Character
@@ -52,6 +63,21 @@ protected:
 	// It's a UObject, so it's cheaper than the Component as it won't have to refresh its transforms every time it's moved.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Modular Character Skin")
 	TArray<TObjectPtr<UCustomizableObjectInstanceUsage>> Usages;
+
+	/** Called once the instance is usable: right after BeginPlay when the CustomizableObject was ready at spawn,
+	 * or later once it has finished loading or compiling in the editor (e.g. the first PIE of a session).
+	 * Set initial instance parameters here rather than in BeginPlay, where the instance may not exist yet. */
+	UFUNCTION(BlueprintImplementableEvent, Category = "Modular Character Skin", meta = (DisplayName = "On Customizable Object Instance Ready"))
+	void K2_OnCustomizableObjectInstanceReady(UCustomizableObjectInstance* Instance);
+
+private:
+	void BroadcastInstanceReady();
+
+#if WITH_EDITOR
+	void HandleCustomizableObjectCompiled(const FCompileCallbackParams& Params);
+#endif
+
+	bool bWaitingForCustomizableObject = false;
 
 public:
 #if WITH_EDITOR
