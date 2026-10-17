@@ -42,5 +42,8 @@ public class RockCosmetics : ModuleRules
 				"SlateCore",
 			}
 		);
+
+		// Registers this module's fast arrays (character parts, Mutable layers) with Iris.
+		SetupIrisSupport(Target);
 	}
 }
