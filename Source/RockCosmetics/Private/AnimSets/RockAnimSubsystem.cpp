@@ -20,7 +20,7 @@ void URockAnimSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	{
 		return;
 	}
-	
+
 	RebuildCache();
 }
 
@@ -28,6 +28,8 @@ void URockAnimSubsystem::Deinitialize()
 {
 	AnimSets.Empty();
 	AnimSetsHandle.Reset();
+	bSetsLoading = false;
+	PendingRequests.Empty();
 	Super::Deinitialize();
 }
 
@@ -54,6 +56,8 @@ void URockAnimSubsystem::RebuildCache()
 		return;
 	}
 
+	// Set before the request: the delegate can run inside LoadPrimaryAssets when the sets are already loaded.
+	bSetsLoading = true;
 	AnimSetsHandle = AssetManager.LoadPrimaryAssets(
 		AssetIds,
 		TArray<FName>(),
@@ -77,7 +81,7 @@ void URockAnimSubsystem::OnAssetsLoaded()
 		URockAnimSetDataAsset* AnimSet = Cast<URockAnimSetDataAsset>(Asset.GetAsset());
 		if (AnimSet)
 		{
-			AnimSets.FindOrAdd(AnimSet->SkeletonClassTag).Sets.Add(AnimSet);
+			RegisterAnimSet(AnimSet);
 			UE_LOG(LogRockCosmetic, Display, TEXT("  + Registered %s -> SkeletonClass: %s, Montages: %d"),
 			       *AssetPath.GetAssetName(), *AnimSet->SkeletonClassTag.ToString(), AnimSet->MontageMap.Num());
 		}
@@ -85,6 +89,23 @@ void URockAnimSubsystem::OnAssetsLoaded()
 		{
 			UE_LOG(LogRockCosmetic, Warning, TEXT("URockAnimSubsystem::OnAnimSetsLoaded: Failed to load anim set at path '%s'"), *AssetPath.ToString());
 		}
+	}
+
+	bSetsLoading = false;
+
+	// Answer what arrived while loading. Moved out first so a callback that queues again cannot change what is walked.
+	TArray<FPendingMontageRequest> Requests = MoveTemp(PendingRequests);
+	for (FPendingMontageRequest& Request : Requests)
+	{
+		ResolveMontage(Request.Pawn.Get(), Request.AnimTag, MoveTemp(Request.OnDone));
+	}
+}
+
+void URockAnimSubsystem::RegisterAnimSet(URockAnimSetDataAsset* AnimSet)
+{
+	if (AnimSet)
+	{
+		AnimSets.FindOrAdd(AnimSet->SkeletonClassTag).Sets.AddUnique(AnimSet);
 	}
 }
 
@@ -113,26 +134,79 @@ UAnimMontage* URockAnimSubsystem::GetMontage(const AActor* Pawn, FGameplayTag An
 	return nullptr;
 }
 
+void URockAnimSubsystem::RequestMontage(const AActor* Pawn, FGameplayTag AnimTag, TFunction<void(UAnimMontage*)> OnDone)
+{
+	if (bSetsLoading)
+	{
+		PendingRequests.Add({Pawn, AnimTag, MoveTemp(OnDone)});
+		return;
+	}
+	ResolveMontage(Pawn, AnimTag, MoveTemp(OnDone));
+}
+
+void URockAnimSubsystem::ResolveMontage(const AActor* Pawn, FGameplayTag AnimTag, TFunction<void(UAnimMontage*)> OnDone) const
+{
+	if (!Pawn)
+	{
+		OnDone(nullptr);
+		return;
+	}
+
+	const FRockAnimSetArray* Sets = AnimSets.Find(GetSkeletonClass(Pawn));
+	if (Sets)
+	{
+		// Walk sets, first one whose tag chain has an entry wins (it answers, with null if its montage fails to load)
+		for (const TObjectPtr<URockAnimSetDataAsset>& Set : Sets->Sets)
+		{
+			if (Set && Set->RequestMontage(AnimTag, OnDone))
+			{
+				return;
+			}
+		}
+	}
+	OnDone(nullptr);
+}
+
 FGameplayTag URockAnimSubsystem::GetSkeletonClass(const AActor* Pawn) const
 {
+	if (!Pawn)
+	{
+		return FGameplayTag::EmptyTag;
+	}
+
 	URockPawnComponent_CharacterParts* CharParts = Pawn->GetComponentByClass<URockPawnComponent_CharacterParts>();
-	// Returns first tag under Cosmetic.SkeletonClass
 	if (CharParts)
 	{
-		FGameplayTagContainer Tags = CharParts->GetCombinedTags(RockCosmeticAnimGameplayTags::Cosmetic_SkeletonClass);
+		TArray<FGameplayTag> Tags;
+		CharParts->GetCombinedTags(RockCosmeticAnimGameplayTags::Cosmetic_SkeletonClass).GetGameplayTagArray(Tags);
 		if (!Tags.IsEmpty())
 		{
-			return Tags.First();
+			// Container order follows the order the parts were added, so pick by name to stay deterministic
+			Tags.Sort([](const FGameplayTag& A, const FGameplayTag& B) { return A.GetTagName().LexicalLess(B.GetTagName()); });
+			if (Tags.Num() > 1 && !WarnedSeveralClassesPawns.Contains(FObjectKey(Pawn)))
+			{
+				WarnedSeveralClassesPawns.Add(FObjectKey(Pawn));
+				UE_LOG(LogRockCosmetic, Warning, TEXT("URockAnimSubsystem::GetSkeletonClass: %s has %d SkeletonClass tags, using %s"),
+				       *Pawn->GetName(), Tags.Num(), *Tags[0].ToString());
+			}
+			return Tags[0];
 		}
 	}
 
 	const IRockSkeletonClassInterface* Interface = Cast<IRockSkeletonClassInterface>(Pawn);
 	if (Interface)
 	{
-		return Interface->GetSkeletonClass();
+		const FGameplayTag SkeletonClass = Interface->GetSkeletonClass();
+		if (SkeletonClass.IsValid())
+		{
+			return SkeletonClass;
+		}
 	}
 
-
-	UE_LOG(LogRockCosmetic, Warning, TEXT("URockAnimSubsystem::GetSkeletonClass: No SkeletonClass found on %s"), *Pawn->GetName());
+	if (!WarnedNoClassPawns.Contains(FObjectKey(Pawn)))
+	{
+		WarnedNoClassPawns.Add(FObjectKey(Pawn));
+		UE_LOG(LogRockCosmetic, Warning, TEXT("URockAnimSubsystem::GetSkeletonClass: No SkeletonClass found on %s"), *Pawn->GetName());
+	}
 	return FGameplayTag::EmptyTag;
 }

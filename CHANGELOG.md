@@ -1,5 +1,11 @@
 # Changelog
 
+## 2610.2301
+
+- `URockAnimSubsystem`: new native `RequestMontage` (answers exactly once, null on a miss, waits while the sets load) and `RegisterAnimSet`. `URockAnimSetDataAsset::PreloadAll` now returns its handle; keep it or the montages can be collected. Nothing preloads automatically yet (decision T-1119) (T-424).
+- `URockAsyncAction_GetMontage` has an `OnFailed` pin; exactly one of `OnLoaded`/`OnFailed` fires. A set's async montage load now always calls back, also with null (T-424).
+- `GetSkeletonClass` warns once per pawn instead of on every call, and picks the lexically first of several `Cosmetic.SkeletonClass` tags (warning once). Tests: `BRS.RockCosmetics.AnimSubsystem` (T-424).
+
 ## 2610.1301
 
 - Fixed `ARockMutableTaggedActor` spawning without a mesh in the editor when its CustomizableObject wasn't compiled yet (the first PIE of a session, or compiled data invalidated by a changed dependency). It now requests the compile and builds its usages once it finishes; `URockMutablePawnComponent_CharacterParts` picks the part up then.

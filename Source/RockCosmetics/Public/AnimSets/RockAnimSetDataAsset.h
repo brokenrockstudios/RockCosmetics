@@ -24,11 +24,13 @@ public:
 	// Synchronous returns null if not loaded 
 	UAnimMontage* GetMontage(FGameplayTag AnimTag, bool bForceSyncIfNeeded = false) const;
 	
-	// Async use for emote wheel preview etc. True if found, false if failed.
+	// Async use for emote wheel preview etc. True if the tag chain has an entry, false if not (OnLoaded is not called then).
+	// When true, OnLoaded is always called once, with null if the entry's montage fails to load.
 	bool RequestMontage(FGameplayTag AnimTag, TFunction<void(UAnimMontage*)> OnLoaded);
-	
-	// Call this to preload entire DA (combat DA on spawn, emote DA on wheel open)
-	void PreloadAll(FStreamableDelegate OnComplete);
+
+	// Call this to preload entire DA (combat DA on spawn, emote DA on wheel open).
+	// The montages stay loaded only while the caller keeps the returned handle (null when the set has no montages).
+	TSharedPtr<FStreamableHandle> PreloadAll(FStreamableDelegate OnComplete = FStreamableDelegate());
 	
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
 	static FPrimaryAssetType GetStaticAssetType();

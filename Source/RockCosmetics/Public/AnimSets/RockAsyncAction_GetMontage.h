@@ -10,11 +10,13 @@
 
 #define UE_API ROCKCOSMETICS_API
 
-/**
- * 
- */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMontageLoaded, UAnimMontage*, Montage);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnMontageRequestFailed);
 
+/**
+ * Loads the montage for a pawn's skeleton class (URockAnimSubsystem::RequestMontage). Exactly one of OnLoaded and OnFailed
+ * fires: OnFailed when the pawn has no skeleton class, there is no set for it, no tag in the chain, or the load fails.
+ */
 UCLASS()
 class UE_API URockAsyncAction_GetMontage : public UBlueprintAsyncActionBase
 {
@@ -24,12 +26,17 @@ public:
 	UPROPERTY(BlueprintAssignable)
 	FOnMontageLoaded OnLoaded;
 
+	UPROPERTY(BlueprintAssignable)
+	FOnMontageRequestFailed OnFailed;
+
 	UFUNCTION(BlueprintCallable, Category = "Rock|Animation", meta = (BlueprintInternalUseOnly = "true", WorldContext = "WorldContextObject"))
 	static URockAsyncAction_GetMontage* RequestMontage(UObject* WorldContextObject, const AActor* Pawn, FGameplayTag AnimTag);
 
 	virtual void Activate() override;
 
 private:
+	void Finish(UAnimMontage* Montage);
+
 	UPROPERTY()
 	TWeakObjectPtr<const AActor> WeakPawn;
 

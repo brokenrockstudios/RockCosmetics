@@ -3,8 +3,8 @@
 
 #include "AnimSets/RockAsyncAction_GetMontage.h"
 
-#include "AnimSets/RockAnimSetDataAsset.h"
 #include "AnimSets/RockAnimSubsystem.h"
+#include "Engine/GameInstance.h"
 
 URockAsyncAction_GetMontage* URockAsyncAction_GetMontage::RequestMontage(
     UObject* WorldContextObject,
@@ -22,64 +22,34 @@ URockAsyncAction_GetMontage* URockAsyncAction_GetMontage::RequestMontage(
 void URockAsyncAction_GetMontage::Activate()
 {
     const AActor* Pawn = WeakPawn.Get();
-    if (!Pawn)
-    {
-        SetReadyToDestroy();
-        return;
-    }
-
     UWorld* World = GEngine->GetWorldFromContextObject(WeakWorldContext.Get(), EGetWorldErrorMode::LogAndReturnNull);
-    if (!World)
+    URockAnimSubsystem* AnimSubsystem = World ? UGameInstance::GetSubsystem<URockAnimSubsystem>(World->GetGameInstance()) : nullptr;
+    if (!Pawn || !AnimSubsystem)
     {
-        SetReadyToDestroy();
+        Finish(nullptr);
         return;
     }
 
-    URockAnimSubsystem* AnimSubsystem = UGameInstance::GetSubsystem<URockAnimSubsystem>(World->GetGameInstance());
-    if (!AnimSubsystem)
+    // The subsystem always answers once (null on a miss), possibly before this returns
+    TWeakObjectPtr<URockAsyncAction_GetMontage> WeakThis(this);
+    AnimSubsystem->RequestMontage(Pawn, AnimTag, [WeakThis](UAnimMontage* Montage)
     {
-        SetReadyToDestroy();
-        return;
-    }
-
-    FGameplayTag SkeletonClass = AnimSubsystem->GetSkeletonClass(Pawn);
-    const FRockAnimSetArray* Sets = AnimSubsystem->AnimSets.Find(SkeletonClass);
-    if (!Sets)
-    {
-        SetReadyToDestroy();
-        return;
-    }
-
-    // Walk sets, first found wins
-    for (const TObjectPtr<URockAnimSetDataAsset>& Set : Sets->Sets)
-    {
-        if (!Set)
+        if (URockAsyncAction_GetMontage* This = WeakThis.Get())
         {
-            continue;
+            This->Finish(Montage);
         }
+    });
+}
 
-        // Reuse existing RequestMontage - it already handles tag hierarchy walk + already-loaded fast path
-        TWeakObjectPtr<URockAsyncAction_GetMontage> WeakThis(this);
-        bool bDispatched = Set->RequestMontage(AnimTag, [WeakThis](UAnimMontage* Montage)
-        {
-            if (!WeakThis.IsValid())
-            {
-                return; // silent noop - ability went away
-            }
-            if (Montage)
-            {
-                WeakThis->OnLoaded.Broadcast(Montage);
-                WeakThis->SetReadyToDestroy();
-            }
-            // null means this set didn't have it - outer loop handles fallthrough
-        });
-
-        if (bDispatched)
-        {
-            return; // async in flight, we're done
-        }
+void URockAsyncAction_GetMontage::Finish(UAnimMontage* Montage)
+{
+    if (Montage)
+    {
+        OnLoaded.Broadcast(Montage);
     }
-
-    // Nothing found across all sets
+    else
+    {
+        OnFailed.Broadcast();
+    }
     SetReadyToDestroy();
 }

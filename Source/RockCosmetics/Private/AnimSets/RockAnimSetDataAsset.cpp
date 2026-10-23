@@ -51,17 +51,14 @@ bool URockAnimSetDataAsset::RequestMontage(FGameplayTag AnimTag, TFunction<void(
 				return true;
 			}
 
-			TWeakObjectPtr<URockAnimSetDataAsset> WeakThis(this);
+			// The callback does not need this set, so it always answers (null if the load failed): callers wait on it.
 			TSoftObjectPtr<UAnimMontage> SoftRef(*Found);
 
 			UAssetManager::Get().GetStreamableManager().RequestAsyncLoad(
 				SoftRef.ToSoftObjectPath(),
-				[WeakThis, SoftRef, OnLoaded]()
+				[SoftRef, OnLoaded]()
 				{
-					if (WeakThis.IsValid())
-					{
-						OnLoaded(SoftRef.Get());
-					}
+					OnLoaded(SoftRef.Get());
 				}
 			);
 			return true;
@@ -71,7 +68,7 @@ bool URockAnimSetDataAsset::RequestMontage(FGameplayTag AnimTag, TFunction<void(
 	return false;
 }
 
-void URockAnimSetDataAsset::PreloadAll(FStreamableDelegate OnComplete)
+TSharedPtr<FStreamableHandle> URockAnimSetDataAsset::PreloadAll(FStreamableDelegate OnComplete)
 {
 	TArray<FSoftObjectPath> Paths;
 	for (auto& [Tag, SoftMontage] : MontageMap)
@@ -83,10 +80,10 @@ void URockAnimSetDataAsset::PreloadAll(FStreamableDelegate OnComplete)
 	if (Paths.IsEmpty())
 	{
 		OnComplete.ExecuteIfBound();
-		return;
+		return nullptr;
 	}
 
-	UAssetManager::Get().GetStreamableManager().RequestAsyncLoad(Paths, OnComplete);
+	return UAssetManager::Get().GetStreamableManager().RequestAsyncLoad(Paths, OnComplete);
 }
 
 FPrimaryAssetId URockAnimSetDataAsset::GetPrimaryAssetId() const

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Actors/RockTaggedActor.h"
+#include "AnimSets/RockSkeletonClassInterface.h"
 #include "Components/RockPawnComponent_CharacterParts.h"
 #include "Components/SceneComponent.h"
 #include "GameFramework/Pawn.h"
@@ -61,6 +62,45 @@ public:
 	virtual void GetOwnedGameplayTags(FGameplayTagContainer& TagContainer) const override
 	{
 		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Test.RockCosmetics.Boots")));
+	}
+};
+
+/** Reports the skeleton class Cosmetic.SkeletonClass.TestRockCosmeticsA. */
+UCLASS()
+class ARCTestSkeletonAActor : public ARCTestPartActor
+{
+	GENERATED_BODY()
+
+public:
+	virtual void GetOwnedGameplayTags(FGameplayTagContainer& TagContainer) const override
+	{
+		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Cosmetic.SkeletonClass.TestRockCosmeticsA")));
+	}
+};
+
+/** Reports the skeleton class Cosmetic.SkeletonClass.TestRockCosmeticsB. */
+UCLASS()
+class ARCTestSkeletonBActor : public ARCTestPartActor
+{
+	GENERATED_BODY()
+
+public:
+	virtual void GetOwnedGameplayTags(FGameplayTagContainer& TagContainer) const override
+	{
+		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Cosmetic.SkeletonClass.TestRockCosmeticsB")));
+	}
+};
+
+/** A pawn that reports Cosmetic.SkeletonClass.TestRockCosmeticsB through IRockSkeletonClassInterface, like AFenNPCPawn. */
+UCLASS()
+class ARCTestSkeletonClassPawn : public ARCTestPawn, public IRockSkeletonClassInterface
+{
+	GENERATED_BODY()
+
+public:
+	virtual FGameplayTag GetSkeletonClass() const override
+	{
+		return FGameplayTag::RequestGameplayTag(TEXT("Cosmetic.SkeletonClass.TestRockCosmeticsB"));
 	}
 };
 
