@@ -1,5 +1,9 @@
 # Changelog
 
+## 2610.2302
+
+- `URockMutablePawnComponent_CharacterParts`: binding to a part that is waiting for its CustomizableObject now happens in one helper used by both `BroadcastChanged` and `ExecuteRecompose`, so a recompose for a waiting part `BroadcastChanged` never saw is no longer dropped (T-440).
+
 ## 2610.2301
 
 - `URockAnimSubsystem`: new native `RequestMontage` (answers exactly once, null on a miss, waits while the sets load) and `RegisterAnimSet`. `URockAnimSetDataAsset::PreloadAll` now returns its handle; keep it or the montages can be collected. Nothing preloads automatically yet (decision T-1119) (T-424).

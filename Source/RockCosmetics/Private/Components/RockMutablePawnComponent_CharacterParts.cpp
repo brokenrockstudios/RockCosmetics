@@ -13,11 +13,13 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RockMutablePawnComponent_CharacterParts)
 
-namespace
+namespace RockMutablePawnComponent_CharacterPartsPrivate
 {
 	// Bounds ExecuteRecompose's self-retry while waiting for CustomizableObjectInstance to become resolvable.
 	constexpr int32 MaxExecuteRecomposeRetries = 10;
 }
+
+using namespace RockMutablePawnComponent_CharacterPartsPrivate;
 
 URockMutablePawnComponent_CharacterParts::URockMutablePawnComponent_CharacterParts()
 {
@@ -66,11 +68,7 @@ void URockMutablePawnComponent_CharacterParts::BroadcastChanged()
 
 		if (mutableTaggedActor->IsWaitingForCustomizableObject())
 		{
-			// Its CustomizableObject is still loading or compiling (editor only), pick the instance up once it's ready.
-			if (!mutableTaggedActor->OnCustomizableObjectInstanceReady.IsBoundToObject(this))
-			{
-				mutableTaggedActor->OnCustomizableObjectInstanceReady.AddUObject(this, &ThisClass::HandleMutableInstanceReady);
-			}
+			WaitForMutableInstance(*mutableTaggedActor);
 			continue;
 		}
 
@@ -133,23 +131,34 @@ void URockMutablePawnComponent_CharacterParts::HandleMutableInstanceReady(ARockM
 	}
 }
 
-bool URockMutablePawnComponent_CharacterParts::IsWaitingForMutableInstance() const
+void URockMutablePawnComponent_CharacterParts::WaitForMutableInstance(ARockMutableTaggedActor& MutableTaggedActor)
 {
+	// Its CustomizableObject is still loading or compiling (editor only), pick the instance up once it's ready.
+	if (!MutableTaggedActor.OnCustomizableObjectInstanceReady.IsBoundToObject(this))
+	{
+		MutableTaggedActor.OnCustomizableObjectInstanceReady.AddUObject(this, &ThisClass::HandleMutableInstanceReady);
+	}
+}
+
+bool URockMutablePawnComponent_CharacterParts::WaitForPendingMutableParts()
+{
+	bool bAnyWaiting = false;
 	for (const FRockAppliedCharacterPartEntry& Entry : CharacterPartList.Entries)
 	{
 		if (Entry.SpawnedComponent == nullptr)
 		{
 			continue;
 		}
-		if (const ARockMutableTaggedActor* mutableTaggedActor = Cast<ARockMutableTaggedActor>(Entry.SpawnedComponent->GetChildActor()))
+		if (ARockMutableTaggedActor* mutableTaggedActor = Cast<ARockMutableTaggedActor>(Entry.SpawnedComponent->GetChildActor()))
 		{
 			if (mutableTaggedActor->IsWaitingForCustomizableObject())
 			{
-				return true;
+				WaitForMutableInstance(*mutableTaggedActor);
+				bAnyWaiting = true;
 			}
 		}
 	}
-	return false;
+	return bAnyWaiting;
 }
 
 void URockMutablePawnComponent_CharacterParts::ApplyOptionToDescriptor(FCustomizableObjectInstanceDescriptor& WorkingDescriptor, const FRockMutableOption& Option)
@@ -294,10 +303,11 @@ void URockMutablePawnComponent_CharacterParts::ExecuteRecompose()
 
 	// LAYER 0: Start with our saved Base Appearance
 	UCustomizableObjectInstance* customObjectInstance = ResolveCustomizableObjectInstance();
-	if (!customObjectInstance && IsWaitingForMutableInstance())
+	if (!customObjectInstance && WaitForPendingMutableParts())
 	{
 		// A part's CustomizableObject is still compiling, which can take longer than the retries below.
-		// HandleMutableInstanceReady requests the recompose again once it's ready.
+		// WaitForPendingMutableParts has bound HandleMutableInstanceReady to each waiting part, which requests
+		// the recompose again once it's ready.
 		RecomposeRetryCount = 0;
 		return;
 	}

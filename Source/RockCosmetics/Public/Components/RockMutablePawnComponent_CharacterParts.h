@@ -73,5 +73,9 @@ private:
 	// A part whose CustomizableObject was still loading or compiling when BroadcastChanged ran (editor only).
 	void HandleMutableInstanceReady(ARockMutableTaggedActor* MutableTaggedActor);
 
-	bool IsWaitingForMutableInstance() const;
+	// Binds HandleMutableInstanceReady to the part (once), so the pending cosmetic entries compose when it is ready.
+	void WaitForMutableInstance(ARockMutableTaggedActor& MutableTaggedActor);
+
+	// WaitForMutableInstance for every part that is still waiting. Returns whether any was.
+	bool WaitForPendingMutableParts();
 };
